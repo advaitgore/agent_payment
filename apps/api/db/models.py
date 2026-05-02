@@ -1,5 +1,6 @@
 import enum
 import uuid
+import secrets
 from datetime import datetime
 from decimal import Decimal
 
@@ -41,6 +42,7 @@ class Agent(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    api_key: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False, default=lambda: secrets.token_hex(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     organization: Mapped[Organization] = relationship(back_populates="agents")

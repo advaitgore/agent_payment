@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.config import get_settings
 from apps.api.db.init_db import init_db
@@ -11,6 +12,15 @@ from apps.api.routes.requests import router as requests_router
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
+
+# Allow local frontend dev servers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(orgs_router)
 app.include_router(agents_router)

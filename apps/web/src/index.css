@@ -61,13 +61,9 @@
   flex-direction: column;
   box-sizing: border-box;
 }
-
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
+html, body, #root { height: 100%; }
+body { margin: 0; }
+* { box-sizing: border-box; }
   font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);

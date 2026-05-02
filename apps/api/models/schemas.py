@@ -31,6 +31,7 @@ class AgentRead(BaseModel):
     id: uuid.UUID
     org_id: uuid.UUID
     name: str
+    api_key: str | None
     created_at: datetime
 
 

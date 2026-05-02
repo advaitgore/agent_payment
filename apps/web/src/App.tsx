@@ -1,36 +1,113 @@
-import React, { useState } from 'react';
-import type { PurchaseEvaluationResponse } from './types/api';
-import { PurchaseRequestForm } from './components/PurchaseRequestForm';
-import { DecisionCard } from './components/DecisionCard';
+import { useEffect, useState } from 'react';
 import './App.css';
+import Sidebar from './components/Sidebar';
+import Setup from './components/Setup';
+import Simulator, { DecisionTerminal } from './components/Simulator';
+import Dashboard from './components/Dashboard';
+import {
+  createOrg,
+  createAgent,
+  createMandate,
+  createPurchaseRequest,
+  evaluatePurchaseRequest,
+  listRequests,
+} from './lib/api';
+import type {
+  AgentRead,
+  OrganizationRead,
+  MandateCreate,
+  PurchaseRequestCreate,
+  PurchaseRequestRead,
+  PurchaseEvaluationResponse,
+} from './types/api';
 
-function App() {
-  const [evaluation, setEvaluation] = useState<PurchaseEvaluationResponse | null>(null);
+function AppContent() {
+  const [agents, setAgents] = useState<AgentRead[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<AgentRead | null>(null);
+  const [org, setOrg] = useState<OrganizationRead | null>(null);
+  const [requests, setRequests] = useState<PurchaseRequestRead[]>([]);
+  const [lastDecision, setLastDecision] = useState<PurchaseEvaluationResponse | null>(null);
+
+  useEffect(() => {
+    // no-op on mount; agents loaded after org/agent creation flows
+  }, []);
+
+  async function handleCreateOrg(name: string) {
+    const o = await createOrg({ name });
+    setOrg(o);
+  }
+
+  async function handleCreateAgent(name: string) {
+    if (!org) return;
+    const a = await createAgent({ org_id: org.id, name });
+    setAgents((s) => [...s, a]);
+    setSelectedAgent(a);
+    return a;
+  }
+
+  async function handleCreateMandate(data: MandateCreate) {
+    await createMandate(data);
+  }
+
+  // refreshAgents is available if needed later
+
+  useEffect(() => {
+    if (selectedAgent) {
+      refreshRequests(selectedAgent.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAgent]);
+
+  async function refreshRequests(agentId: string) {
+    const rs = await listRequests(agentId);
+    setRequests(rs || []);
+  }
+
+  async function handleSimulateRequest(payload: PurchaseRequestCreate) {
+    const pr = await createPurchaseRequest(payload);
+    const evalRes = await evaluatePurchaseRequest(pr.id);
+    setLastDecision(evalRes);
+    if (selectedAgent) await refreshRequests(selectedAgent.id);
+  }
 
   return (
-    <div className="app" style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingTop: '40px', paddingBottom: '40px' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto', paddingLeft: '16px', paddingRight: '16px' }}>
-        <header style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#1976d2' }}>Agent Payment</h1>
-          <p style={{ margin: '0', fontSize: '14px', color: '#666' }}>Submit and evaluate purchase requests</p>
-        </header>
+    <div className="app-grid">
+      <Sidebar>
+        <h2>Setup</h2>
+        <Setup
+          onCreateOrg={handleCreateOrg}
+          onCreateAgent={handleCreateAgent}
+          onCreateMandate={handleCreateMandate}
+          agents={agents}
+        />
+      </Sidebar>
 
-        <section style={{ backgroundColor: 'white', padding: '32px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ marginTop: 0, marginBottom: '24px', fontSize: '20px', fontWeight: '600', color: '#333' }}>Submit Purchase Request</h2>
-          <PurchaseRequestForm onEvaluationComplete={setEvaluation} />
+      <main className="main">
+        <section className="panel">
+          <h3>Request Simulator</h3>
+          <Simulator
+            agents={agents}
+            selectedAgent={selectedAgent}
+            onSelectAgent={(a) => setSelectedAgent(a)}
+            onSubmit={handleSimulateRequest}
+          />
+          {lastDecision && <DecisionTerminal result={lastDecision} />}
         </section>
 
-        {evaluation && (
-          <section>
-            <h2 style={{ marginTop: '40px', marginBottom: '24px', fontSize: '20px', fontWeight: '600', color: '#333', textAlign: 'center' }}>
-              Evaluation Result
-            </h2>
-            <DecisionCard result={evaluation} />
-          </section>
-        )}
-      </div>
+        <section className="panel">
+          <h3>Dashboard</h3>
+          <Dashboard requests={requests} />
+        </section>
+      </main>
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <div className="app-root">
+      <header className="topbar">Agent Payment Dashboard</header>
+      <AppContent />
+    </div>
+  );
+}

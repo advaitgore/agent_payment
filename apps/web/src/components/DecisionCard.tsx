@@ -1,4 +1,3 @@
-import React from 'react';
 import type { PurchaseEvaluationResponse } from '../types/api';
 
 interface DecisionCardProps {

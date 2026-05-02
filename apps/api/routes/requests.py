@@ -15,6 +15,22 @@ from apps.api.services.policy_service import evaluate_request
 router = APIRouter(prefix="/requests", tags=["requests"])
 
 
+@router.get("", response_model=list[PurchaseRequestRead])
+def list_requests(
+    agent_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> list[PurchaseRequestRead]:
+    """Return the most recent 50 purchase requests for an agent, newest first."""
+    requests = (
+        db.query(PurchaseRequest)
+        .filter(PurchaseRequest.agent_id == agent_id)
+        .order_by(PurchaseRequest.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [PurchaseRequestRead.model_validate(r) for r in requests]
+
+
 @router.post("", response_model=PurchaseRequestRead)
 def create_request(
     req: PurchaseRequestCreate,
