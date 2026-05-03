@@ -10,7 +10,12 @@ from apps.api.models.schemas import MandateCreate, MandateRead
 router = APIRouter(prefix="/mandates", tags=["mandates"])
 
 
-@router.post("", response_model=MandateRead)
+@router.post(
+    "",
+    response_model=MandateRead,
+    summary="Create mandate",
+    description="Create a mandate for an agent with spending rules and optional callback URL.",
+)
 def create_mandate(
     mandate: MandateCreate,
     db: Session = Depends(get_db),
@@ -31,6 +36,7 @@ def create_mandate(
         max_per_transaction=mandate.max_per_transaction,
         approval_threshold=mandate.approval_threshold,
         allowed_merchants=mandate.allowed_merchants,
+        callback_url=mandate.callback_url,
     )
     db.add(new_mandate)
     db.commit()
@@ -38,7 +44,26 @@ def create_mandate(
     return MandateRead.model_validate(new_mandate)
 
 
-@router.get("/{mandate_id}", response_model=MandateRead)
+@router.get(
+    "",
+    response_model=list[MandateRead],
+    summary="List mandates",
+    description="List mandates filtered by agent_id.",
+)
+def list_mandates(
+    agent_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> list[MandateRead]:
+    mandates = db.query(Mandate).filter(Mandate.agent_id == agent_id).all()
+    return [MandateRead.model_validate(mandate) for mandate in mandates]
+
+
+@router.get(
+    "/{mandate_id}",
+    response_model=MandateRead,
+    summary="Get mandate",
+    description="Fetch a specific mandate by its ID.",
+)
 def get_mandate(
     mandate_id: uuid.UUID,
     db: Session = Depends(get_db),

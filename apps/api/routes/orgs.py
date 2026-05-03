@@ -10,7 +10,12 @@ from apps.api.models.schemas import OrganizationCreate, OrganizationRead
 router = APIRouter(prefix="/orgs", tags=["organizations"])
 
 
-@router.post("", response_model=OrganizationRead)
+@router.post(
+    "",
+    response_model=OrganizationRead,
+    summary="Create organization",
+    description="Create a new organization that can own agents and mandates.",
+)
 def create_organization(
     org: OrganizationCreate,
     db: Session = Depends(get_db),
@@ -23,7 +28,12 @@ def create_organization(
     return OrganizationRead.model_validate(organization)
 
 
-@router.get("/{org_id}", response_model=OrganizationRead)
+@router.get(
+    "/{org_id}",
+    response_model=OrganizationRead,
+    summary="Get organization",
+    description="Fetch a single organization by its ID.",
+)
 def get_organization(
     org_id: uuid.UUID,
     db: Session = Depends(get_db),

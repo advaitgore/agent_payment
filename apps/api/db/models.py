@@ -43,6 +43,8 @@ class Agent(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     api_key: Mapped[str] = mapped_column(String(128), unique=True, index=True, nullable=False, default=lambda: secrets.token_hex(32))
+    wallet_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    webhook_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     organization: Mapped[Organization] = relationship(back_populates="agents")
@@ -58,6 +60,7 @@ class Mandate(Base):
     max_per_transaction: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     approval_threshold: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     allowed_merchants: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    callback_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

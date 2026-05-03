@@ -1,0 +1,34 @@
+name: AgentPay
+description: Authorization layer for AI agent spending with mandate-based decisions.
+version: "0.1.0"
+tools:
+  - name: authorize_purchase
+    description: Authorize a purchase against the agent mandate.
+    parameters:
+      api_key:
+        type: string
+        description: Agent API key.
+      merchant:
+        type: string
+        description: Merchant name.
+      amount:
+        type: number
+        description: Purchase amount in USD.
+      category:
+        type: string
+        description: Merchant category.
+      reason:
+        type: string
+        description: Why the agent wants the purchase.
+  - name: get_mandate
+    description: Fetch the current mandate for an agent.
+    parameters:
+      api_key:
+        type: string
+        description: Agent API key.
+  - name: get_spending_summary
+    description: Fetch spending totals and counts for an agent.
+    parameters:
+      api_key:
+        type: string
+        description: Agent API key.

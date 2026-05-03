@@ -13,13 +13,23 @@ from apps.api.auth import get_agent_from_api_key
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.get("/me", response_model=AgentRead)
+@router.get(
+    "/me",
+    response_model=AgentRead,
+    summary="Get current agent",
+    description="Resolve the agent associated with the provided x-api-key header.",
+)
 def get_current_agent(agent: Agent = Depends(get_agent_from_api_key)) -> AgentRead:
     """Return the agent associated with the provided x-api-key header."""
     return AgentRead.model_validate(agent)
 
 
-@router.post("", response_model=AgentRead)
+@router.post(
+    "",
+    response_model=AgentRead,
+    summary="Create agent",
+    description="Create a new agent under an organization and return its api_key.",
+)
 def create_agent(
     agent: AgentCreate,
     db: Session = Depends(get_db),
@@ -30,14 +40,24 @@ def create_agent(
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
-    new_agent = Agent(org_id=agent.org_id, name=agent.name)
+    new_agent = Agent(
+        org_id=agent.org_id,
+        name=agent.name,
+        wallet_address=agent.wallet_address,
+        webhook_url=agent.webhook_url,
+    )
     db.add(new_agent)
     db.commit()
     db.refresh(new_agent)
     return AgentRead.model_validate(new_agent)
 
 
-@router.get("", response_model=list[AgentRead])
+@router.get(
+    "",
+    response_model=list[AgentRead],
+    summary="List agents",
+    description="List all agents for a given organization.",
+)
 def list_agents(
     org_id: uuid.UUID,
     db: Session = Depends(get_db),
@@ -47,7 +67,11 @@ def list_agents(
     return [AgentRead.model_validate(agent) for agent in agents]
 
 
-@router.get("/{agent_id}/spending")
+@router.get(
+    "/{agent_id}/spending",
+    summary="Get spending summary",
+    description="Return request counts and total approved spend for the agent.",
+)
 def agent_spending(
     agent_id: uuid.UUID,
     db: Session = Depends(get_db),

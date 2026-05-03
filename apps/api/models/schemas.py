@@ -23,6 +23,8 @@ class OrganizationRead(BaseModel):
 class AgentCreate(BaseModel):
     org_id: uuid.UUID
     name: str
+    wallet_address: str | None = None
+    webhook_url: str | None = None
 
 
 class AgentRead(BaseModel):
@@ -32,6 +34,8 @@ class AgentRead(BaseModel):
     org_id: uuid.UUID
     name: str
     api_key: str | None
+    wallet_address: str | None
+    webhook_url: str | None
     created_at: datetime
 
 
@@ -40,6 +44,7 @@ class MandateCreate(BaseModel):
     max_per_transaction: Decimal
     approval_threshold: Decimal
     allowed_merchants: list[str]
+    callback_url: str | None = None
 
 
 class MandateRead(BaseModel):
@@ -50,6 +55,7 @@ class MandateRead(BaseModel):
     max_per_transaction: Decimal
     approval_threshold: Decimal
     allowed_merchants: list[str]
+    callback_url: str | None
     created_at: datetime
 
 

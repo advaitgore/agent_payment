@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from apps.api.db.models import AuditEvent, Decision, DecisionStatus, PurchaseRequest, RequestStatus
@@ -11,11 +11,17 @@ from apps.api.models.schemas import (
     PurchaseRequestRead,
 )
 from apps.api.services.policy_service import evaluate_request
+from apps.api.services.webhook_service import fire_webhook
 
 router = APIRouter(prefix="/requests", tags=["requests"])
 
 
-@router.get("", response_model=list[PurchaseRequestRead])
+@router.get(
+    "",
+    response_model=list[PurchaseRequestRead],
+    summary="List purchase requests",
+    description="Return the most recent purchase requests for an agent, newest first.",
+)
 def list_requests(
     agent_id: uuid.UUID,
     db: Session = Depends(get_db),
@@ -31,7 +37,12 @@ def list_requests(
     return [PurchaseRequestRead.model_validate(r) for r in requests]
 
 
-@router.post("", response_model=PurchaseRequestRead)
+@router.post(
+    "",
+    response_model=PurchaseRequestRead,
+    summary="Create purchase request",
+    description="Create a new purchase request in pending status.",
+)
 def create_request(
     req: PurchaseRequestCreate,
     db: Session = Depends(get_db),
@@ -51,9 +62,15 @@ def create_request(
     return PurchaseRequestRead.model_validate(purchase_request)
 
 
-@router.post("/{request_id}/evaluate", response_model=PurchaseEvaluationResponse)
+@router.post(
+    "/{request_id}/evaluate",
+    response_model=PurchaseEvaluationResponse,
+    summary="Evaluate purchase request",
+    description="Evaluate a purchase request against the agent mandate and store a decision.",
+)
 def evaluate_purchase_request(
     request_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> PurchaseEvaluationResponse:
     """Evaluate a purchase request and create a decision."""
@@ -107,6 +124,19 @@ def evaluate_purchase_request(
 
     db.commit()
     db.refresh(decision)
+
+    if decision_status == DecisionStatus.needs_review:
+        webhook_url = agent.webhook_url or agent.mandate.callback_url
+        if webhook_url:
+            payload = {
+                "event": "needs_review",
+                "request_id": str(purchase_request.id),
+                "merchant": purchase_request.merchant,
+                "amount": str(purchase_request.amount),
+                "reason": reason_code,
+                "agent_id": str(agent.id),
+            }
+            background_tasks.add_task(fire_webhook, webhook_url, payload)
 
     return PurchaseEvaluationResponse(
         request_id=purchase_request.id,
