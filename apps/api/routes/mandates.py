@@ -3,9 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from apps.api.db.models import Agent, Mandate
+from apps.api.db.models import Agent, AuditEvent, Mandate
 from apps.api.db.session import get_db
-from apps.api.models.schemas import MandateCreate, MandateRead
+from apps.api.models.schemas import MandateCreate, MandateRead, MandateUpdate
 
 router = APIRouter(prefix="/mandates", tags=["mandates"])
 
@@ -72,4 +72,41 @@ def get_mandate(
     mandate = db.query(Mandate).filter(Mandate.id == mandate_id).first()
     if not mandate:
         raise HTTPException(status_code=404, detail="Mandate not found")
+    return MandateRead.model_validate(mandate)
+
+
+@router.patch(
+    "/{mandate_id}",
+    response_model=MandateRead,
+    summary="Update mandate",
+    description="Update mandate limits, allowed merchants, or callback URL.",
+)
+def update_mandate(
+    mandate_id: uuid.UUID,
+    payload: MandateUpdate,
+    db: Session = Depends(get_db),
+) -> MandateRead:
+    mandate = db.query(Mandate).filter(Mandate.id == mandate_id).first()
+    if not mandate:
+        raise HTTPException(status_code=404, detail="Mandate not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No mandate fields provided")
+
+    for field, value in update_data.items():
+        setattr(mandate, field, value)
+
+    audit_event = AuditEvent(
+        request_id=None,
+        action="mandate_updated",
+        details={
+            "agent_id": str(mandate.agent_id),
+            "mandate_id": str(mandate.id),
+        },
+    )
+    db.add(audit_event)
+    db.commit()
+    db.refresh(mandate)
+
     return MandateRead.model_validate(mandate)

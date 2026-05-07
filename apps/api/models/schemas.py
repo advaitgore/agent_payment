@@ -47,6 +47,13 @@ class MandateCreate(BaseModel):
     callback_url: str | None = None
 
 
+class MandateUpdate(BaseModel):
+    max_per_transaction: Decimal | None = None
+    approval_threshold: Decimal | None = None
+    allowed_merchants: list[str] | None = None
+    callback_url: str | None = None
+
+
 class MandateRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -57,6 +64,7 @@ class MandateRead(BaseModel):
     allowed_merchants: list[str]
     callback_url: str | None
     created_at: datetime
+    updated_at: datetime | None = None
 
 
 class PurchaseRequestCreate(BaseModel):
@@ -98,6 +106,24 @@ class AuditEventRead(BaseModel):
     action: str
     details: dict[str, Any]
     created_at: datetime
+
+
+class AuditEventListItem(BaseModel):
+    id: uuid.UUID
+    request_id: uuid.UUID | None
+    action: str
+    created_at: datetime
+    merchant: str | None
+    amount: Decimal | None
+    decision_status: DecisionStatus | None
+    trace_id: str
+
+
+class AuditEventListResponse(BaseModel):
+    items: list[AuditEventListItem]
+    total: int
+    limit: int
+    offset: int
 
 
 class PurchaseEvaluationResponse(BaseModel):

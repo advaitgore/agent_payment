@@ -1,11 +1,12 @@
+import secrets
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 from decimal import Decimal
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-from apps.api.db.models import Agent, Organization, PurchaseRequest, RequestStatus
+from apps.api.db.models import Agent, AuditEvent, Organization, PurchaseRequest, RequestStatus
 from apps.api.db.session import get_db
 from apps.api.models.schemas import AgentCreate, AgentRead
 from apps.api.auth import get_agent_from_api_key
@@ -65,6 +66,49 @@ def list_agents(
     """List all agents for an organization."""
     agents = db.query(Agent).filter(Agent.org_id == org_id).all()
     return [AgentRead.model_validate(agent) for agent in agents]
+
+
+@router.get(
+    "/{agent_id}",
+    response_model=AgentRead,
+    summary="Get agent",
+    description="Fetch a single agent by ID.",
+)
+def get_agent(
+    agent_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> AgentRead:
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return AgentRead.model_validate(agent)
+
+
+@router.post(
+    "/{agent_id}/rotate-key",
+    response_model=AgentRead,
+    summary="Rotate agent API key",
+    description="Generate a new API key for the agent and record an audit event.",
+)
+def rotate_agent_key(
+    agent_id: uuid.UUID,
+    db: Session = Depends(get_db),
+) -> AgentRead:
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    agent.api_key = secrets.token_hex(32)
+    audit_event = AuditEvent(
+        request_id=None,
+        action="api_key_rotated",
+        details={"agent_id": str(agent.id)},
+    )
+    db.add(audit_event)
+    db.commit()
+    db.refresh(agent)
+
+    return AgentRead.model_validate(agent)
 
 
 @router.get(

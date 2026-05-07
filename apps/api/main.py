@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.api.config import get_settings
 from apps.api.db.init_db import init_db
 from apps.api.routes.agents import router as agents_router
+from apps.api.routes.audit_events import router as audit_events_router
 from apps.api.routes.mandates import router as mandates_router
 from apps.api.routes.orgs import router as orgs_router
 from apps.api.routes.requests import router as requests_router
@@ -25,6 +26,7 @@ app.add_middleware(
 
 app.include_router(orgs_router)
 app.include_router(agents_router)
+app.include_router(audit_events_router)
 app.include_router(mandates_router)
 app.include_router(requests_router)
 app.include_router(x402_router)
