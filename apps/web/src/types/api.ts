@@ -93,6 +93,7 @@ export interface AuditEventListItem {
   id: string;
   request_id?: string | null;
   action: string;
+  details: Record<string, unknown>;
   created_at: string;
   merchant?: string | null;
   amount?: number | null;

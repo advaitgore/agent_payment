@@ -61,6 +61,7 @@ def list_audit_events(
                 "id": audit_event.id,
                 "request_id": audit_event.request_id,
                 "action": audit_event.action,
+                "details": audit_event.details,
                 "created_at": audit_event.created_at,
                 "merchant": purchase_request.merchant if purchase_request else None,
                 "amount": purchase_request.amount if purchase_request else None,

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type TopBarVariant = 'default' | 'with-search' | 'breadcrumb';
 
 export default function TopBar({

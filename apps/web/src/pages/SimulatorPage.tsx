@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import { createPurchaseRequest, evaluatePurchaseRequest, listAgents } from '../lib/api';
 import { getStoredAgentId, getStoredOrgId, setStoredAgentId } from '../lib/storage';
 import type { AgentRead, PurchaseEvaluationResponse } from '../types/api';
+import type { AppContext } from '../types/app';
 
 function statusMeta(status: string) {
   if (status === 'approved') {
@@ -15,9 +16,9 @@ function statusMeta(status: string) {
   return { label: 'NEEDS REVIEW', className: 'terminal-review' };
 }
 
-export default function SimulatorPage() {
+export default function SimulatorPage({ currentOrgId, currentOrgName, currentAgentId, currentPage = 'simulator', onNavigate }: Partial<AppContext> = {}) {
   const [agents, setAgents] = useState<AgentRead[]>([]);
-  const [agentId, setAgentId] = useState<string | null>(getStoredAgentId());
+  const [agentId, setAgentId] = useState<string | null>(currentAgentId ?? getStoredAgentId());
   const [merchant, setMerchant] = useState('STEAM GAMES EUROPE');
   const [amount, setAmount] = useState('59.99');
   const [category, setCategory] = useState('7994 - Video Game Arcades/Establishments');
@@ -25,7 +26,7 @@ export default function SimulatorPage() {
   const [result, setResult] = useState<PurchaseEvaluationResponse | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
 
-  const orgId = useMemo(() => getStoredOrgId(), []);
+  const orgId = useMemo(() => currentOrgId ?? getStoredOrgId(), [currentOrgId]);
 
   useEffect(() => {
     document.title = 'Simulator - AI_PAY_AUTH';
@@ -90,7 +91,7 @@ export default function SimulatorPage() {
     : null;
 
   return (
-    <AppShell>
+    <AppShell currentOrgId={currentOrgId} currentOrgName={currentOrgName} currentAgentId={currentAgentId} currentPage={currentPage} onNavigate={onNavigate}>
       <TopBar title="Authorization Console" showSearch searchPlaceholder="Search logs..." />
 
       <main className="page-main simulator-main">

@@ -112,6 +112,7 @@ class AuditEventListItem(BaseModel):
     id: uuid.UUID
     request_id: uuid.UUID | None
     action: str
+    details: dict[str, Any]
     created_at: datetime
     merchant: str | None
     amount: Decimal | None

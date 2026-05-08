@@ -14,10 +14,10 @@ import type {
   DecisionStatus,
 } from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001';
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 async function apiCall<T>(endpoint: string, method: string = 'GET', body?: unknown): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${BASE_URL}${endpoint}`;
   const opts: RequestInit = {
     method,
     headers: {
@@ -35,6 +35,10 @@ async function apiCall<T>(endpoint: string, method: string = 'GET', body?: unkno
 
 export async function createOrg(payload: OrganizationCreate): Promise<OrganizationRead> {
   return apiCall<OrganizationRead>('/orgs', 'POST', payload);
+}
+
+export async function getOrganization(orgId: string): Promise<OrganizationRead> {
+  return apiCall<OrganizationRead>(`/orgs/${orgId}`);
 }
 
 export async function createAgent(payload: AgentCreate): Promise<AgentRead> {
