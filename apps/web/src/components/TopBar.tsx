@@ -1,6 +1,9 @@
 interface Props {
   title: string
   subtitle?: string
+  breadcrumb?: string
+  showSearch?: boolean
+  searchPlaceholder?: string
 }
 
 export default function TopBar({ title, subtitle }: Props) {

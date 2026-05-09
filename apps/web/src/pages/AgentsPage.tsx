@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import type { Page } from '../App'
 
-interface Props { onNavigate: (page: Page) => void }
+interface Props { onNavigate?: (page: Page) => void }
 
-export default function AgentsPage({ onNavigate }: Props) {
+export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
   const [showKey, setShowKey] = useState(false)
   const [copied, setCopied] = useState(false)
   const apiKey = 'api_key_redacted_replace_after_provisioning'
@@ -166,7 +166,7 @@ export default function AgentsPage({ onNavigate }: Props) {
                 { id: 'POL_091_ENFORCE_GEO', desc: 'Transaction origin must match US-East.' },
                 { id: 'POL_212_MANDATE_ID', desc: 'Include mandate hash in metadata.' },
               ].map(p => (
-                <div key={p.id} style={{ padding: '10px 12px', backgroundColor: '#080808', borderLeft: '2px solid #C08532', border: '1px solid rgba(255,255,255,0.05)', borderLeft: '2px solid #C08532' }}>
+                <div key={p.id} style={{ padding: '10px 12px', backgroundColor: '#080808', borderLeft: '2px solid #C08532', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <span style={{ display: 'block', fontFamily: 'Space Grotesk', fontSize: '10px', color: '#fff', fontWeight: 500 }}>{p.id}</span>
                   <span style={{ display: 'block', fontFamily: 'Inter', fontSize: '11px', color: '#737373', marginTop: '3px' }}>{p.desc}</span>
                 </div>

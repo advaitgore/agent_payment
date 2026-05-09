@@ -4,8 +4,13 @@ import TopBar from '../components/TopBar';
 import { createAgent, createMandate, createOrg } from '../lib/api';
 import { getStoredAgentId, getStoredMandateId, getStoredOrgId, setStoredAgentId, setStoredMandateId, setStoredOrgId } from '../lib/storage';
 import type { MandateCreate } from '../types/api';
+import type { Page } from '../App';
 
-export default function SetupPage() {
+interface Props {
+  onNavigate: (page: Page) => void
+}
+
+export default function SetupPage({ onNavigate: _onNavigate }: Props) {
   const [orgName, setOrgName] = useState('');
   const [agentName, setAgentName] = useState('');
   const [apiKey, setApiKey] = useState<string | null>(null);
