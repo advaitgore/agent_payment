@@ -1,11 +1,34 @@
 import { useEffect, useState } from 'react';
-import AppShell from '../components/AppShell';
-import TopBar from '../components/TopBar';
+import type { Page } from '../App';
 import { createAgent, createMandate, createOrg } from '../lib/api';
 import { getStoredAgentId, getStoredMandateId, getStoredOrgId, setStoredAgentId, setStoredMandateId, setStoredOrgId } from '../lib/storage';
 import type { MandateCreate } from '../types/api';
 
-export default function SetupPage() {
+interface Props {
+  onNavigate: (page: Page) => void
+}
+
+const S: Record<string, React.CSSProperties> = {
+  page: { maxWidth: '860px', margin: '0 auto', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '12px' },
+  header: { borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' },
+  h1: { fontFamily: 'Inter', fontSize: '28px', fontWeight: 600, color: '#fff', letterSpacing: '-0.02em' },
+  sub: { fontFamily: 'Space Grotesk', fontSize: '11px', color: '#737373', letterSpacing: '0.04em', marginTop: '4px', textTransform: 'uppercase' as const },
+  card: { backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' },
+  stepNum: { fontFamily: 'Space Grotesk', fontSize: '10px', color: '#C08532', letterSpacing: '0.1em', textTransform: 'uppercase' as const },
+  stepTitle: { fontFamily: 'Inter', fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '2px' },
+  stepDesc: { fontFamily: 'Inter', fontSize: '12px', color: '#737373' },
+  label: { fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '4px', display: 'block' },
+  input: { width: '100%', backgroundColor: '#080808', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', fontFamily: 'Space Grotesk', fontSize: '13px', padding: '9px 12px', outline: 'none' },
+  btn: { padding: '9px 18px', backgroundColor: '#C08532', color: '#000', border: 'none', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, cursor: 'pointer' },
+  btnDisabled: { padding: '9px 18px', backgroundColor: '#1A1A1A', color: '#555', border: '1px solid rgba(255,255,255,0.08)', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' as const, cursor: 'not-allowed' },
+  badge: { padding: '2px 8px', fontFamily: 'Space Grotesk', fontSize: '10px', borderRadius: '2px' },
+  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  keyBox: { backgroundColor: '#080808', border: '1px solid rgba(192,133,50,0.3)', padding: '12px', fontFamily: 'Space Grotesk', fontSize: '12px', color: '#C08532', letterSpacing: '0.05em', wordBreak: 'break-all' as const },
+  warn: { fontFamily: 'Inter', fontSize: '11px', color: '#514537' },
+  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' },
+}
+
+export default function SetupPage({ onNavigate }: Props) {
   const [orgName, setOrgName] = useState('');
   const [agentName, setAgentName] = useState('');
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -13,226 +36,201 @@ export default function SetupPage() {
   const [budget, setBudget] = useState('15000.00');
   const [merchantInput, setMerchantInput] = useState('');
   const [merchants, setMerchants] = useState<string[]>([]);
-
   const [orgId, setOrgId] = useState<string | null>(getStoredOrgId());
   const [agentId, setAgentId] = useState<string | null>(getStoredAgentId());
   const [mandateId, setMandateId] = useState<string | null>(getStoredMandateId());
+  const [loading, setLoading] = useState('');
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    document.title = 'Setup - AI Agent Payment Authorization';
-  }, []);
-
-  async function handleCreateOrg() {
-    if (!orgName) return;
-    const org = await createOrg({ name: orgName });
-    setOrgId(org.id);
-    setStoredOrgId(org.id);
-    setOrgName('');
-  }
-
-  async function handleCreateAgent() {
-    if (!orgId || !agentName) return;
-    const agent = await createAgent({ org_id: orgId, name: agentName });
-    setAgentId(agent.id);
-    setStoredAgentId(agent.id);
-    setApiKey(agent.api_key ?? null);
-    setAgentName('');
-  }
-
-  function addMerchant() {
-    if (!merchantInput.trim()) return;
-    setMerchants((prev) => Array.from(new Set([...prev, merchantInput.trim()])));
-    setMerchantInput('');
-  }
-
-  async function handleCreateMandate() {
-    if (!agentId) return;
-    const payload: MandateCreate = {
-      agent_id: agentId,
-      max_per_transaction: Number(maxPer),
-      approval_threshold: Number(budget),
-      allowed_merchants: merchants,
-    };
-    const mandate = await createMandate(payload);
-    setMandateId(mandate.id);
-    setStoredMandateId(mandate.id);
-  }
+  useEffect(() => { document.title = 'Setup – AgentPay'; }, []);
 
   const step1Done = Boolean(orgId);
   const step2Done = Boolean(agentId);
   const step3Done = Boolean(mandateId);
 
+  async function handleCreateOrg() {
+    if (!orgName || step1Done) return;
+    setLoading('org'); setError('');
+    try {
+      const org = await createOrg({ name: orgName });
+      setOrgId(org.id); setStoredOrgId(org.id); setOrgName('');
+    } catch { setError('Failed to create org. Is the API running?'); }
+    setLoading('');
+  }
+
+  async function handleCreateAgent() {
+    if (!orgId || !agentName || step2Done) return;
+    setLoading('agent'); setError('');
+    try {
+      const agent = await createAgent({ org_id: orgId, name: agentName });
+      setAgentId(agent.id); setStoredAgentId(agent.id);
+      setApiKey(agent.api_key ?? null); setAgentName('');
+    } catch { setError('Failed to create agent.'); }
+    setLoading('');
+  }
+
+  function addMerchant() {
+    if (!merchantInput.trim()) return;
+    setMerchants(prev => Array.from(new Set([...prev, merchantInput.trim()])));
+    setMerchantInput('');
+  }
+
+  async function handleCreateMandate() {
+    if (!agentId || step3Done) return;
+    setLoading('mandate'); setError('');
+    try {
+      const payload: MandateCreate = { agent_id: agentId, max_per_transaction: Number(maxPer), approval_threshold: Number(budget), allowed_merchants: merchants };
+      const mandate = await createMandate(payload);
+      setMandateId(mandate.id); setStoredMandateId(mandate.id);
+    } catch { setError('Failed to create mandate.'); }
+    setLoading('');
+  }
+
+  const stepStyle = (done: boolean, locked: boolean): React.CSSProperties => ({
+    ...S.card,
+    opacity: locked ? 0.45 : 1,
+    borderLeft: done ? '2px solid #4ae176' : '2px solid rgba(192,133,50,0.4)',
+    pointerEvents: locked ? 'none' : 'auto',
+  });
+
   return (
-    <AppShell>
-      <TopBar title="Authorization Console" />
+    <div style={S.page}>
+      <div style={S.header}>
+        <h1 style={S.h1}>Setup</h1>
+        <p style={S.sub}>Initialize org · provision agent · define mandate</p>
+      </div>
 
-      <main className="page-main setup-main">
-        <div className="setup-header">
-          <h1 className="font-h2">Initialize Authorization Flow</h1>
-          <p className="text-muted">
-            Configure organization details, provision a new agent, and define transaction mandates to secure automated
-            payments.
-          </p>
+      {error && (
+        <div style={{ backgroundColor: 'rgba(255,180,171,0.08)', border: '1px solid rgba(255,180,171,0.2)', padding: '10px 14px', fontFamily: 'Space Grotesk', fontSize: '12px', color: '#ffb4ab' }}>
+          {error}
         </div>
+      )}
 
-        <div className="setup-stepper">
-          <div className={`step-block ${step1Done ? 'step-complete' : 'step-active'}`}>
-            <div className="step-line step-line-active" />
-            <div className="step-indicator">
-              <span className="material-symbols-outlined">{step1Done ? 'check' : 'radio_button_checked'}</span>
-            </div>
-            <div className="step-card">
-              <div className="step-card-header">
-                <div>
-                  <div className="step-title">
-                    <span className="step-index">01.</span> Create Org
-                  </div>
-                  <p className="step-subtitle">Define the root entity for this deployment.</p>
-                </div>
-                <span className={`step-badge ${step1Done ? 'badge-complete' : 'badge-active'}`}>
-                  {step1Done ? 'Configured' : 'In Progress'}
-                </span>
-              </div>
-              <div className={`step-body ${step1Done ? 'step-disabled' : ''}`}>
-                <label>Organization Name</label>
-                <input
-                  disabled={step1Done}
-                  value={orgName}
-                  onChange={(event) => setOrgName(event.target.value)}
-                  placeholder="Acme Corp Automated Trading"
-                />
-                <button onClick={handleCreateOrg} disabled={step1Done || !orgName}>
-                  Create Org
-                </button>
-              </div>
+      {/* Step 1 */}
+      <div style={stepStyle(step1Done, false)}>
+        <div style={S.row}>
+          <div>
+            <span style={S.stepNum}>01 / Create Org</span>
+            <div style={S.stepTitle}>Organization</div>
+            <div style={S.stepDesc}>Define the root entity for this deployment.</div>
+          </div>
+          <span style={{ ...S.badge, backgroundColor: step1Done ? 'rgba(74,225,118,0.1)' : 'rgba(192,133,50,0.1)', color: step1Done ? '#4ae176' : '#C08532', border: `1px solid ${step1Done ? 'rgba(74,225,118,0.2)' : 'rgba(192,133,50,0.2)'}` }}>
+            {step1Done ? 'DONE' : 'ACTIVE'}
+          </span>
+        </div>
+        {!step1Done && (
+          <div>
+            <label style={S.label}>Organization Name</label>
+            <input style={S.input} value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="Acme Corp Automated Trading"
+              onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+            />
+            <div style={{ marginTop: '10px' }}>
+              <button style={orgName && loading !== 'org' ? S.btn : S.btnDisabled} onClick={handleCreateOrg} disabled={!orgName || loading === 'org'}>
+                {loading === 'org' ? 'Creating...' : 'Create Org'}
+              </button>
             </div>
           </div>
+        )}
+        {step1Done && <div style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#4ae176' }}>✓ Org created — ID stored in session</div>}
+      </div>
 
-          <div className={`step-block ${step2Done ? 'step-complete' : step1Done ? 'step-active' : 'step-locked'}`}>
-            <div className="step-line" />
-            <div className="step-indicator">
-              <span className="material-symbols-outlined">{step2Done ? 'check' : 'radio_button_checked'}</span>
-            </div>
-            <div className={`step-card ${step1Done ? 'step-card-active' : 'step-card-locked'}`}>
-              <div className="step-card-header">
-                <div>
-                  <div className="step-title">
-                    <span className="step-index">02.</span> Provision Agent
-                  </div>
-                  <p className="step-subtitle">Generate credentials for the autonomous actor.</p>
-                </div>
-                <span className={`step-badge ${step2Done ? 'badge-complete' : 'badge-active'}`}>
-                  {step2Done ? 'Configured' : 'In Progress'}
-                </span>
-              </div>
-              <div className={`step-body ${step1Done ? '' : 'step-disabled'}`}>
-                <label>Agent Identifier</label>
-                <input
-                  disabled={!step1Done || step2Done}
-                  value={agentName}
-                  onChange={(event) => setAgentName(event.target.value)}
-                  placeholder="trading-bot-alpha-v2"
-                />
-                {apiKey && (
-                  <div className="api-key-panel">
-                    <div className="api-key-header">
-                      <span>
-                        <span className="material-symbols-outlined">key</span> Generated API Key
-                      </span>
-                      <button type="button" className="icon-button">
-                        <span className="material-symbols-outlined">content_copy</span>
-                      </button>
-                    </div>
-                    <div className="api-key-value font-jetbrains">{apiKey}</div>
-                    <p className="api-key-warning">
-                      <span className="material-symbols-outlined">warning</span>
-                      Store this securely. It will not be shown again.
-                    </p>
-                  </div>
-                )}
-                <div className="step-actions">
-                  <button onClick={handleCreateAgent} disabled={!step1Done || step2Done || !agentName}>
-                    Confirm & Continue
-                  </button>
-                </div>
-              </div>
+      {/* Step 2 */}
+      <div style={stepStyle(step2Done, !step1Done)}>
+        <div style={S.row}>
+          <div>
+            <span style={S.stepNum}>02 / Provision Agent</span>
+            <div style={S.stepTitle}>Agent</div>
+            <div style={S.stepDesc}>Generate credentials for the autonomous actor.</div>
+          </div>
+          <span style={{ ...S.badge, backgroundColor: step2Done ? 'rgba(74,225,118,0.1)' : 'rgba(192,133,50,0.1)', color: step2Done ? '#4ae176' : '#C08532', border: `1px solid ${step2Done ? 'rgba(74,225,118,0.2)' : 'rgba(192,133,50,0.2)'}` }}>
+            {step2Done ? 'DONE' : step1Done ? 'ACTIVE' : 'LOCKED'}
+          </span>
+        </div>
+        {!step2Done && (
+          <div>
+            <label style={S.label}>Agent Identifier</label>
+            <input style={S.input} value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="trading-bot-alpha-v2"
+              onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+            />
+            <div style={{ marginTop: '10px' }}>
+              <button style={agentName && loading !== 'agent' ? S.btn : S.btnDisabled} onClick={handleCreateAgent} disabled={!agentName || loading === 'agent'}>
+                {loading === 'agent' ? 'Creating...' : 'Provision Agent'}
+              </button>
             </div>
           </div>
+        )}
+        {apiKey && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={S.label}>Generated API Key — store this now</label>
+            <div style={S.keyBox}>{apiKey}</div>
+            <p style={S.warn}>⚠ This will not be shown again.</p>
+          </div>
+        )}
+        {step2Done && !apiKey && <div style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#4ae176' }}>✓ Agent provisioned</div>}
+      </div>
 
-          <div className={`step-block ${step3Done ? 'step-complete' : step2Done ? 'step-active' : 'step-locked'}`}>
-            <div className="step-indicator step-indicator-locked">
-              <span>{step3Done ? 'check' : '3'}</span>
-            </div>
-            <div className={`step-card ${step2Done ? '' : 'step-card-locked'}`}>
-              <div className="step-card-header">
-                <div>
-                  <div className="step-title">
-                    <span className="step-index">03.</span> Define Mandate
-                  </div>
-                  <p className="step-subtitle">Set spending limits and allowed merchants.</p>
-                </div>
-                <span className="step-lock">
-                  <span className="material-symbols-outlined">lock</span>
-                </span>
+      {/* Step 3 */}
+      <div style={stepStyle(step3Done, !step2Done)}>
+        <div style={S.row}>
+          <div>
+            <span style={S.stepNum}>03 / Define Mandate</span>
+            <div style={S.stepTitle}>Mandate</div>
+            <div style={S.stepDesc}>Set spending limits and allowed merchants.</div>
+          </div>
+          <span style={{ ...S.badge, backgroundColor: step3Done ? 'rgba(74,225,118,0.1)' : 'rgba(192,133,50,0.1)', color: step3Done ? '#4ae176' : '#C08532', border: `1px solid ${step3Done ? 'rgba(74,225,118,0.2)' : 'rgba(192,133,50,0.2)'}` }}>
+            {step3Done ? 'DONE' : step2Done ? 'ACTIVE' : 'LOCKED'}
+          </span>
+        </div>
+        {!step3Done && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={S.grid2}>
+              <div>
+                <label style={S.label}>Transaction Limit ($)</label>
+                <input style={S.input} value={maxPer} onChange={e => setMaxPer(e.target.value)}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+                />
               </div>
-              <div className={`step-body ${step2Done ? '' : 'step-disabled'}`}>
-                <label>Allowed Merchants</label>
-                <div className="merchant-tags">
-                  {merchants.length === 0 && <span className="merchant-empty">Awaiting input...</span>}
-                  {merchants.map((merchant) => (
-                    <span className="merchant-tag" key={merchant}>
-                      {merchant}
-                    </span>
+              <div>
+                <label style={S.label}>Monthly Budget ($)</label>
+                <input style={S.input} value={budget} onChange={e => setBudget(e.target.value)}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+                />
+              </div>
+            </div>
+            <div>
+              <label style={S.label}>Allowed Merchants (press Enter to add)</label>
+              <input style={S.input} value={merchantInput} onChange={e => setMerchantInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMerchant(); } }}
+                placeholder="Stripe, AWS, GitHub..."
+                onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+              />
+              {merchants.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                  {merchants.map(m => (
+                    <span key={m} style={{ padding: '3px 10px', backgroundColor: 'rgba(192,133,50,0.1)', border: '1px solid rgba(192,133,50,0.2)', color: '#C08532', fontFamily: 'Space Grotesk', fontSize: '11px', borderRadius: '2px' }}>{m}</span>
                   ))}
-                  <input
-                    disabled={!step2Done}
-                    value={merchantInput}
-                    onChange={(event) => setMerchantInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        addMerchant();
-                      }
-                    }}
-                    placeholder="Add Merchant ID..."
-                  />
                 </div>
-                <div className="mandate-grid">
-                  <div>
-                    <label>Transaction Limit</label>
-                    <div className="input-money">
-                      <span>$</span>
-                      <input
-                        disabled={!step2Done}
-                        value={maxPer}
-                        onChange={(event) => setMaxPer(event.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label>Monthly Budget</label>
-                    <div className="input-money">
-                      <span>$</span>
-                      <input
-                        disabled={!step2Done}
-                        value={budget}
-                        onChange={(event) => setBudget(event.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="step-actions">
-                  <button onClick={handleCreateMandate} disabled={!step2Done || step3Done}>
-                    Save Mandate
-                  </button>
-                </div>
-              </div>
+              )}
+            </div>
+            <div>
+              <button style={loading !== 'mandate' ? S.btn : S.btnDisabled} onClick={handleCreateMandate} disabled={loading === 'mandate'}>
+                {loading === 'mandate' ? 'Saving...' : 'Save Mandate'}
+              </button>
             </div>
           </div>
-        </div>
-      </main>
-    </AppShell>
-  );
+        )}
+        {step3Done && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#4ae176' }}>✓ Mandate active — ready to authorize</div>
+            <button style={S.btn} onClick={() => onNavigate('simulator')}>Run Simulator →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
