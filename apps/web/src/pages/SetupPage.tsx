@@ -1,217 +1,172 @@
-import { useEffect, useState } from 'react';
-import AppShell from '../components/AppShell';
-import TopBar from '../components/TopBar';
-import { createAgent, createMandate, createOrg } from '../lib/api';
-import { getStoredAgentId, getStoredMandateId, getStoredOrgId, setStoredAgentId, setStoredMandateId, setStoredOrgId } from '../lib/storage';
-import type { MandateCreate } from '../types/api';
-import type { Page } from '../App';
+import { useEffect, useState } from 'react'
+import type { Page } from '../App'
 
 interface Props {
-  onNavigate: (page: Page) => void
+  onNavigate?: (page: Page) => void
 }
 
 export default function SetupPage({ onNavigate: _onNavigate }: Props) {
-  const [orgName, setOrgName] = useState('');
-  const [agentName, setAgentName] = useState('');
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [maxPer, setMaxPer] = useState('500.00');
-  const [budget, setBudget] = useState('15000.00');
-  const [merchantInput, setMerchantInput] = useState('');
-  const [merchants, setMerchants] = useState<string[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(getStoredOrgId());
-  const [agentId, setAgentId] = useState<string | null>(getStoredAgentId());
-  const [mandateId, setMandateId] = useState<string | null>(getStoredMandateId());
-  const [loading, setLoading] = useState('');
-  const [error, setError] = useState('');
+  const [orgName, setOrgName] = useState('')
+  const [agentName, setAgentName] = useState('')
+  const [apiKey, setApiKey] = useState<string | null>(null)
+  const [maxPer, setMaxPer] = useState('500.00')
+  const [budget, setBudget] = useState('15000.00')
+  const [merchantInput, setMerchantInput] = useState('')
+  const [merchants, setMerchants] = useState<string[]>([])
 
-  useEffect(() => { document.title = 'Setup – AgentPay'; }, []);
+  useEffect(() => {
+    document.title = 'Setup - AI_PAY_AUTH'
+  }, [])
 
-  const step1Done = Boolean(orgId);
-  const step2Done = Boolean(agentId);
-  const step3Done = Boolean(mandateId);
-
-  async function handleCreateOrg() {
-    if (!orgName || step1Done) return;
-    setLoading('org'); setError('');
-    try {
-      const org = await createOrg({ name: orgName });
-      setOrgId(org.id); setStoredOrgId(org.id); setOrgName('');
-    } catch { setError('Failed to create org. Is the API running?'); }
-    setLoading('');
-  }
-
-  async function handleCreateAgent() {
-    if (!orgId || !agentName || step2Done) return;
-    setLoading('agent'); setError('');
-    try {
-      const agent = await createAgent({ org_id: orgId, name: agentName });
-      setAgentId(agent.id); setStoredAgentId(agent.id);
-      setApiKey(agent.api_key ?? null); setAgentName('');
-    } catch { setError('Failed to create agent.'); }
-    setLoading('');
-  }
+  const step1Done = Boolean(orgName)
+  const step2Done = Boolean(agentName)
+  const step3Done = Boolean(merchants.length > 0)
 
   function addMerchant() {
-    if (!merchantInput.trim()) return;
-    setMerchants(prev => Array.from(new Set([...prev, merchantInput.trim()])));
-    setMerchantInput('');
+    if (!merchantInput.trim()) return
+    setMerchants((prev) => Array.from(new Set([...prev, merchantInput.trim()])))
+    setMerchantInput('')
   }
 
-  async function handleCreateMandate() {
-    if (!agentId || step3Done) return;
-    setLoading('mandate'); setError('');
-    try {
-      const payload: MandateCreate = { agent_id: agentId, max_per_transaction: Number(maxPer), approval_threshold: Number(budget), allowed_merchants: merchants };
-      const mandate = await createMandate(payload);
-      setMandateId(mandate.id); setStoredMandateId(mandate.id);
-    } catch { setError('Failed to create mandate.'); }
-    setLoading('');
+  const handleCopy = () => {
+    if (apiKey) navigator.clipboard.writeText(apiKey).catch(() => {})
   }
-
-  const stepStyle = (done: boolean, locked: boolean): React.CSSProperties => ({
-    ...S.card,
-    opacity: locked ? 0.45 : 1,
-    borderLeft: done ? '2px solid #4ae176' : '2px solid rgba(192,133,50,0.4)',
-    pointerEvents: locked ? 'none' : 'auto',
-  });
 
   return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <h1 style={S.h1}>Setup</h1>
-        <p style={S.sub}>Initialize org · provision agent · define mandate</p>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
+        <h1 style={{ fontFamily: 'Inter', fontSize: '28px', fontWeight: 600, color: '#fff', letterSpacing: '-0.02em' }}>Setup</h1>
+        <p style={{ fontFamily: 'Space Grotesk', fontSize: '11px', color: '#737373', letterSpacing: '0.04em', marginTop: '4px', textTransform: 'uppercase' }}>
+          Initialize Authorization Flow
+        </p>
       </div>
 
-      {error && (
-        <div style={{ backgroundColor: 'rgba(255,180,171,0.08)', border: '1px solid rgba(255,180,171,0.2)', padding: '10px 14px', fontFamily: 'Space Grotesk', fontSize: '12px', color: '#ffb4ab' }}>
-          {error}
-        </div>
-      )}
-
-      {/* Step 1 */}
-      <div style={stepStyle(step1Done, false)}>
-        <div style={S.row}>
-          <div>
-            <span style={S.stepNum}>01 / Create Org</span>
-            <div style={S.stepTitle}>Organization</div>
-            <div style={S.stepDesc}>Define the root entity for this deployment.</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+        {/* Step 1: Create Org */}
+        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>01. Create Organization</span>
+              <p style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', marginTop: '2px' }}>Define the root entity for this deployment.</p>
+            </div>
+            <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: step1Done ? '#4ae176' : '#C08532', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {step1Done ? 'Configured' : 'In Progress'}
+            </span>
           </div>
-          <span style={{ ...S.badge, backgroundColor: step1Done ? 'rgba(74,225,118,0.1)' : 'rgba(192,133,50,0.1)', color: step1Done ? '#4ae176' : '#C08532', border: `1px solid ${step1Done ? 'rgba(74,225,118,0.2)' : 'rgba(192,133,50,0.2)'}` }}>
-            {step1Done ? 'DONE' : 'ACTIVE'}
-          </span>
-        </div>
-        {!step1Done && (
           <div>
-            <label style={S.label}>Organization Name</label>
-            <input style={S.input} value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="Acme Corp Automated Trading"
-              onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+            <label style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
+              Organization Name
+            </label>
+            <input
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="Acme Corp Automated Trading"
+              style={{ width: '100%', backgroundColor: '#080808', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e2e1', fontFamily: 'Space Grotesk', fontSize: '12px', padding: '8px 12px', outline: 'none', borderRadius: '2px' }}
+              disabled={step1Done}
             />
-            <div style={{ marginTop: '10px' }}>
-              <button style={orgName && loading !== 'org' ? S.btn : S.btnDisabled} onClick={handleCreateOrg} disabled={!orgName || loading === 'org'}>
-                {loading === 'org' ? 'Creating...' : 'Create Org'}
+          </div>
+          <button
+            onClick={() => {}}
+            disabled={step1Done || !orgName}
+            style={{ padding: '8px 16px', backgroundColor: step1Done || !orgName ? '#1A1A1A' : '#C08532', color: step1Done || !orgName ? '#555' : '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: step1Done || !orgName ? 'not-allowed' : 'pointer' }}
+          >
+            Create Org
+          </button>
+        </div>
+
+        {/* Step 2: Provision Agent */}
+        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', opacity: step1Done ? 1 : 0.5, pointerEvents: step1Done ? 'auto' : 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>02. Provision Agent</span>
+              <p style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', marginTop: '2px' }}>Generate credentials for the autonomous actor.</p>
+            </div>
+            <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: step2Done ? '#4ae176' : '#C08532', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {step2Done ? 'Configured' : 'In Progress'}
+            </span>
+          </div>
+          <div>
+            <label style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
+              Agent Identifier
+            </label>
+            <input
+              value={agentName}
+              onChange={(e) => setAgentName(e.target.value)}
+              placeholder="trading-bot-alpha-v2"
+              style={{ width: '100%', backgroundColor: '#080808', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e2e1', fontFamily: 'Space Grotesk', fontSize: '12px', padding: '8px 12px', outline: 'none', borderRadius: '2px' }}
+              disabled={step2Done}
+            />
+          </div>
+          {apiKey && (
+            <div style={{ backgroundColor: '#080808', border: '1px solid rgba(192,133,50,0.3)', padding: '10px 12px', borderRadius: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#C08532', letterSpacing: '0.05em', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {apiKey}
+              </span>
+              <button onClick={handleCopy} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C08532', fontSize: '14px', padding: '0 8px' }}>
+                📋
               </button>
             </div>
-          </div>
-        )}
-        {step1Done && <div style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#4ae176' }}>✓ Org created — ID stored in session</div>}
-      </div>
-
-      {/* Step 2 */}
-      <div style={stepStyle(step2Done, !step1Done)}>
-        <div style={S.row}>
-          <div>
-            <span style={S.stepNum}>02 / Provision Agent</span>
-            <div style={S.stepTitle}>Agent</div>
-            <div style={S.stepDesc}>Generate credentials for the autonomous actor.</div>
-          </div>
-          <span style={{ ...S.badge, backgroundColor: step2Done ? 'rgba(74,225,118,0.1)' : 'rgba(192,133,50,0.1)', color: step2Done ? '#4ae176' : '#C08532', border: `1px solid ${step2Done ? 'rgba(74,225,118,0.2)' : 'rgba(192,133,50,0.2)'}` }}>
-            {step2Done ? 'DONE' : step1Done ? 'ACTIVE' : 'LOCKED'}
-          </span>
+          )}
+          <button
+            onClick={() => setApiKey('sk_live_**redacted**')}
+            disabled={step2Done || !agentName}
+            style={{ padding: '8px 16px', backgroundColor: step2Done || !agentName ? '#1A1A1A' : '#C08532', color: step2Done || !agentName ? '#555' : '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: step2Done || !agentName ? 'not-allowed' : 'pointer' }}
+          >
+            Provision Agent
+          </button>
         </div>
-        {!step2Done && (
-          <div>
-            <label style={S.label}>Agent Identifier</label>
-            <input style={S.input} value={agentName} onChange={e => setAgentName(e.target.value)} placeholder="trading-bot-alpha-v2"
-              onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
-            />
-            <div style={{ marginTop: '10px' }}>
-              <button style={agentName && loading !== 'agent' ? S.btn : S.btnDisabled} onClick={handleCreateAgent} disabled={!agentName || loading === 'agent'}>
-                {loading === 'agent' ? 'Creating...' : 'Provision Agent'}
-              </button>
+
+        {/* Step 3: Define Mandate */}
+        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', opacity: step2Done ? 1 : 0.5, pointerEvents: step2Done ? 'auto' : 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>03. Define Mandate</span>
+              <p style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', marginTop: '2px' }}>Set spending limits and allowed merchants.</p>
             </div>
+            <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: step3Done ? '#4ae176' : '#C08532', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {step3Done ? 'Configured' : 'In Progress'}
+            </span>
           </div>
-        )}
-        {apiKey && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={S.label}>Generated API Key — store this now</label>
-            <div style={S.keyBox}>{apiKey}</div>
-            <p style={S.warn}>⚠ This will not be shown again.</p>
-          </div>
-        )}
-        {step2Done && !apiKey && <div style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#4ae176' }}>✓ Agent provisioned</div>}
-      </div>
-
-      {/* Step 3 */}
-      <div style={stepStyle(step3Done, !step2Done)}>
-        <div style={S.row}>
           <div>
-            <span style={S.stepNum}>03 / Define Mandate</span>
-            <div style={S.stepTitle}>Mandate</div>
-            <div style={S.stepDesc}>Set spending limits and allowed merchants.</div>
+            <label style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
+              Allowed Merchants
+            </label>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+              {merchants.map((m) => (
+                <span key={m} style={{ padding: '4px 8px', backgroundColor: '#080808', border: '1px solid rgba(192,133,50,0.3)', color: '#C08532', fontFamily: 'Space Grotesk', fontSize: '10px', borderRadius: '2px' }}>
+                  {m}
+                </span>
+              ))}
+            </div>
+            <input
+              value={merchantInput}
+              onChange={(e) => setMerchantInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addMerchant()}
+              placeholder="Add Merchant ID..."
+              style={{ width: '100%', backgroundColor: '#080808', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e2e1', fontFamily: 'Space Grotesk', fontSize: '12px', padding: '8px 12px', outline: 'none', borderRadius: '2px' }}
+            />
           </div>
-          <span style={{ ...S.badge, backgroundColor: step3Done ? 'rgba(74,225,118,0.1)' : 'rgba(192,133,50,0.1)', color: step3Done ? '#4ae176' : '#C08532', border: `1px solid ${step3Done ? 'rgba(74,225,118,0.2)' : 'rgba(192,133,50,0.2)'}` }}>
-            {step3Done ? 'DONE' : step2Done ? 'ACTIVE' : 'LOCKED'}
-          </span>
-        </div>
-        {!step3Done && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={S.grid2}>
-              <div>
-                <label style={S.label}>Transaction Limit ($)</label>
-                <input style={S.input} value={maxPer} onChange={e => setMaxPer(e.target.value)}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
-                  onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
-                />
-              </div>
-              <div>
-                <label style={S.label}>Monthly Budget ($)</label>
-                <input style={S.input} value={budget} onChange={e => setBudget(e.target.value)}
-                  onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
-                  onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
-                />
-              </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
+                Transaction Limit
+              </label>
+              <input value={maxPer} onChange={(e) => setMaxPer(e.target.value)} placeholder="0.00" style={{ width: '100%', backgroundColor: '#080808', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e2e1', fontFamily: 'Space Grotesk', fontSize: '12px', padding: '8px 12px', outline: 'none', borderRadius: '2px' }} />
             </div>
             <div>
-              <label style={S.label}>Allowed Merchants (press Enter to add)</label>
-              <input style={S.input} value={merchantInput} onChange={e => setMerchantInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMerchant(); } }}
-                placeholder="Stripe, AWS, GitHub..."
-                onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
-              />
-              {merchants.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-                  {merchants.map(m => (
-                    <span key={m} style={{ padding: '3px 10px', backgroundColor: 'rgba(192,133,50,0.1)', border: '1px solid rgba(192,133,50,0.2)', color: '#C08532', fontFamily: 'Space Grotesk', fontSize: '11px', borderRadius: '2px' }}>{m}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <button style={loading !== 'mandate' ? S.btn : S.btnDisabled} onClick={handleCreateMandate} disabled={loading === 'mandate'}>
-                {loading === 'mandate' ? 'Saving...' : 'Save Mandate'}
-              </button>
+              <label style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '6px' }}>
+                Monthly Budget
+              </label>
+              <input value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0.00" style={{ width: '100%', backgroundColor: '#080808', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e2e1', fontFamily: 'Space Grotesk', fontSize: '12px', padding: '8px 12px', outline: 'none', borderRadius: '2px' }} />
             </div>
           </div>
-        )}
-        {step3Done && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#4ae176' }}>✓ Mandate active — ready to authorize</div>
-            <button style={S.btn} onClick={() => onNavigate('simulator')}>Run Simulator →</button>
-          </div>
-        )}
+          <button
+            onClick={() => {}}
+            style={{ padding: '8px 16px', backgroundColor: '#C08532', color: '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
+          >
+            Save Mandate
+          </button>
+        </div>
       </div>
     </div>
   )
