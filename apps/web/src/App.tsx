@@ -1,24 +1,42 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import './App.css';
-import DashboardPage from './pages/DashboardPage';
-import SetupPage from './pages/SetupPage';
-import SimulatorPage from './pages/SimulatorPage';
-import AgentDetailPage from './pages/AgentDetailPage';
-import AuditLogPage from './pages/AuditLogPage';
-import MandateEditorPage from './pages/MandateEditorPage';
+import { useState } from 'react'
+import './index.css'
+import Sidebar from './components/Sidebar'
+import TopBar from './components/TopBar'
+import DashboardPage from './pages/DashboardPage'
+import AgentsPage from './pages/AgentsPage'
+import SimulatorPage from './pages/SimulatorPage'
+import AuditLogPage from './pages/AuditLogPage'
+import SetupPage from './pages/SetupPage'
+import SettingsPage from './pages/SettingsPage'
+
+export type Page = 'dashboard' | 'setup' | 'simulator' | 'agents' | 'audit' | 'settings'
 
 export default function App() {
+  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
+
+  const pageMap: Record<Page, { title: string; subtitle?: string }> = {
+    dashboard: { title: 'Authorization Console', subtitle: 'Overview' },
+    setup: { title: 'Authorization Console', subtitle: 'Setup' },
+    simulator: { title: 'Authorization Console', subtitle: 'Simulator' },
+    agents: { title: 'Authorization Console', subtitle: 'Agents' },
+    audit: { title: 'Authorization Console', subtitle: 'Audit Log' },
+    settings: { title: 'Authorization Console', subtitle: 'Settings' },
+  }
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/setup" element={<SetupPage />} />
-        <Route path="/simulator" element={<SimulatorPage />} />
-        <Route path="/agent/:agentId" element={<AgentDetailPage />} />
-        <Route path="/audit" element={<AuditLogPage />} />
-        <Route path="/mandate/:agentId" element={<MandateEditorPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-  );
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#080808' }}>
+      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+      <div style={{ marginLeft: '240px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <TopBar title={pageMap[currentPage].title} subtitle={pageMap[currentPage].subtitle} />
+        <main style={{ marginTop: '56px', padding: '12px', minHeight: 'calc(100vh - 56px)' }}>
+          {currentPage === 'dashboard' && <DashboardPage onNavigate={setCurrentPage} />}
+          {currentPage === 'setup' && <SetupPage onNavigate={setCurrentPage} />}
+          {currentPage === 'simulator' && <SimulatorPage onNavigate={setCurrentPage} />}
+          {currentPage === 'agents' && <AgentsPage onNavigate={setCurrentPage} />}
+          {currentPage === 'audit' && <AuditLogPage onNavigate={setCurrentPage} />}
+          {currentPage === 'settings' && <SettingsPage onNavigate={setCurrentPage} />}
+        </main>
+      </div>
+    </div>
+  )
 }

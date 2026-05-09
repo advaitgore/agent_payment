@@ -1,133 +1,102 @@
-import { useEffect, useMemo, useState } from 'react';
-import AppShell from '../components/AppShell';
-import TopBar from '../components/TopBar';
-import { getSpendingSummary, listRequests } from '../lib/api';
-import { getStoredAgentId } from '../lib/storage';
-import type { PurchaseRequestRead, SpendingSummary } from '../types/api';
+import type { Page } from '../App'
 
-function shortId(value: string) {
-  return value.replace(/-/g, '').slice(0, 6).toUpperCase();
+interface Props {
+  onNavigate: (page: Page) => void
 }
 
-function formatStatus(status: string) {
-  if (status === 'needs_review') return 'Review';
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
+const KPI_CARDS = [
+  { label: 'TOTAL AGENTS', value: '12', sub: '+2 this week', icon: 'smart_toy', color: '#C08532' },
+  { label: 'AUTH REQUESTS (24H)', value: '1,284', sub: 'UP 8.3% vs yesterday', icon: 'bolt', color: '#4ae176' },
+  { label: 'APPROVAL RATE', value: '97.2%', sub: 'DOWN 0.4% vs last week', icon: 'check_circle', color: '#4ae176' },
+  { label: 'TOTAL SPEND (30D)', value: '$8,402', sub: '$1,598 remaining', icon: 'account_balance_wallet', color: '#C08532' },
+]
 
-function statusClass(status: string) {
-  if (status === 'approved') return 'status-approved';
-  if (status === 'denied') return 'status-denied';
-  return 'status-review';
-}
+const RECENT = [
+  { time: '14:22:01', event: 'AUTH_SUCCESS', detail: '$42.00 to STRIPE', color: '#4ae176' },
+  { time: '14:18:45', event: 'AUTH_SUCCESS', detail: '$12.50 to STRIPE', color: '#4ae176' },
+  { time: '13:55:12', event: 'AUTH_DENIED', detail: 'EXCEED_VOL_LIMIT', color: '#ffb4ab' },
+  { time: '13:40:00', event: 'KEY_ROTATED', detail: 'USER_INITIATED', color: '#e5e2e1' },
+  { time: '12:10:30', event: 'MANDATE_UPDATED', detail: 'LIMIT +$200', color: '#737373' },
+]
 
-function iconForMerchant(merchant: string) {
-  const normalized = merchant.toLowerCase();
-  if (normalized.includes('api')) return 'api';
-  if (normalized.includes('cloud')) return 'language';
-  if (normalized.includes('stripe')) return 'api';
-  if (normalized.includes('unknown')) return 'warning';
-  if (normalized.includes('store')) return 'storefront';
-  return 'shopping_cart';
-}
+const HEALTH = [32, 45, 21, 70, 58]
 
-export default function DashboardPage() {
-  const [spending, setSpending] = useState<SpendingSummary | null>(null);
-  const [requests, setRequests] = useState<PurchaseRequestRead[]>([]);
-  const agentId = useMemo(() => getStoredAgentId(), []);
-
-  useEffect(() => {
-    document.title = 'Dashboard - AI_PAY_AUTH';
-  }, []);
-
-  useEffect(() => {
-    if (!agentId) return;
-    getSpendingSummary(agentId).then(setSpending).catch(() => setSpending(null));
-    listRequests(agentId).then(setRequests).catch(() => setRequests([]));
-  }, [agentId]);
-
+export default function DashboardPage({ onNavigate }: Props) {
   return (
-    <AppShell>
-      <TopBar
-        title="Authorization Console"
-        showSearch
-        searchPlaceholder="Search ID, Hash, or Entity"
-      />
-
-      <main className="page-main dashboard-main">
-        <div className="dashboard-kpis">
-          <div className="kpi-card">
-            <div className="kpi-header">
-              <span className="kpi-label">Total Requests</span>
-              <span className="material-symbols-outlined">analytics</span>
-            </div>
-            <div className="kpi-value">{spending ? spending.total_requests : '0'}</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-header">
-              <span className="kpi-label">Approved</span>
-              <span className="material-symbols-outlined kpi-icon-approved">check_circle</span>
-            </div>
-            <div className="kpi-value">{spending ? spending.approved : '0'}</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-header">
-              <span className="kpi-label">Denied</span>
-              <span className="material-symbols-outlined kpi-icon-denied">block</span>
-            </div>
-            <div className="kpi-value">{spending ? spending.denied : '0'}</div>
-          </div>
-          <div className="kpi-card">
-            <div className="kpi-header">
-              <span className="kpi-label">Needs Review</span>
-              <span className="material-symbols-outlined kpi-icon-review">pending_actions</span>
-            </div>
-            <div className="kpi-value">{spending ? spending.needs_review : '0'}</div>
-          </div>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <h1 style={{ fontFamily: 'Inter', fontSize: '28px', fontWeight: 600, color: '#fff', letterSpacing: '-0.02em' }}>Dashboard</h1>
+          <p style={{ fontFamily: 'Space Grotesk', fontSize: '11px', color: '#737373', letterSpacing: '0.04em', marginTop: '4px', textTransform: 'uppercase' }}>
+            Authorization Overview · Live
+          </p>
         </div>
+        <button
+          onClick={() => onNavigate('simulator')}
+          style={{ padding: '8px 16px', backgroundColor: '#C08532', color: '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
+        >
+          Run Simulator
+        </button>
+      </div>
 
-        <div className="dashboard-section-header">
-          <h2 className="font-h2">Recent Requests</h2>
-          <button className="link-button">
-            View All <span className="material-symbols-outlined">arrow_forward</span>
-          </button>
-        </div>
-
-        <div className="requests-table">
-          <div className="requests-table-head">
-            <div>Merchant / Entity</div>
-            <div className="text-right">Amount</div>
-            <div className="text-center">Status</div>
-            <div className="text-right">Time</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        {KPI_CARDS.map((k) => (
+          <div key={k.label} style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k.label}</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: k.color }}>{k.icon}</span>
+            </div>
+            <div style={{ fontFamily: 'Space Grotesk', fontSize: '28px', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>{k.value}</div>
+            <div style={{ fontFamily: 'Space Grotesk', fontSize: '11px', color: '#555' }}>{k.sub}</div>
           </div>
-          <div className="requests-table-body">
-            {requests.length === 0 && (
-              <div className="requests-empty">No requests yet.</div>
-            )}
-            {requests.map((request) => (
-              <div className="requests-row" key={request.id}>
-                <div className="requests-merchant">
-                  <div className="requests-icon">
-                    <span className="material-symbols-outlined">{iconForMerchant(request.merchant)}</span>
-                  </div>
-                  <div>
-                    <div className="requests-name">{request.merchant}</div>
-                    <div className="requests-code">REQ-{shortId(request.id)}</div>
-                  </div>
-                </div>
-                <div className="requests-amount">${Number(request.amount).toFixed(2)}</div>
-                <div className="requests-status">
-                  <span className={`status-pill ${statusClass(request.status)}`}>
-                    {formatStatus(request.status)}
-                  </span>
-                </div>
-                <div className="requests-time">
-                  {new Date(request.created_at).toLocaleTimeString()}
-                </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Recent Events</span>
+            <button onClick={() => onNavigate('audit')} style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#C08532', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.04em' }}>
+              View all -&gt;
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+            {RECENT.map((r, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: i < RECENT.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', color: '#555', minWidth: '60px' }}>{r.time}</span>
+                <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', color: r.color, minWidth: '120px', fontWeight: 500 }}>{r.event}</span>
+                <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', color: '#737373' }}>{r.detail}</span>
               </div>
             ))}
           </div>
         </div>
-      </main>
-    </AppShell>
-  );
+
+        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>System Health</span>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '48px' }}>
+            {HEALTH.map((h, i) => (
+              <div key={i} style={{ flex: 1, backgroundColor: `rgba(74,225,118,${h / 100})`, height: `${h}%`, borderRadius: '1px' }} />
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {[{ label: 'Latency', value: '24ms', color: '#fff' }, { label: 'Success Rate', value: '99.98%', color: '#4ae176' }].map((m) => (
+              <div key={m.label}>
+                <span style={{ display: 'block', fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{m.label}</span>
+                <span style={{ fontFamily: 'Space Grotesk', fontSize: '20px', fontWeight: 700, color: m.color }}>{m.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button onClick={() => onNavigate('agents')} style={{ width: '100%', padding: '7px', backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e2e1', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.15s' }}>
+              Manage Agents
+            </button>
+            <button onClick={() => onNavigate('audit')} style={{ width: '100%', padding: '7px', backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#e5e2e1', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.15s' }}>
+              View Audit Log
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
