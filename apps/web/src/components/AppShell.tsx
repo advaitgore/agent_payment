@@ -1,20 +1,6 @@
-import React from 'react';
-import Sidebar from './Sidebar';
-import type { AppContext } from '../types/app';
+import type { ReactNode } from 'react'
 
-type AppShellProps = React.PropsWithChildren<Partial<AppContext> & { onNavigate?: (page: AppContext['currentPage']) => void }>;
-
-export default function AppShell({ children, currentOrgId, currentOrgName, currentAgentId, currentPage, onNavigate }: AppShellProps) {
-  return (
-    <div className="app-shell">
-      <Sidebar
-        currentAgentId={currentAgentId}
-        currentOrgId={currentOrgId}
-        currentOrgName={currentOrgName}
-        currentPage={currentPage}
-        onNavigate={onNavigate}
-      />
-      {children}
-    </div>
-  );
+// Legacy shell — kept as a passthrough so old imports don't break.
+export default function AppShell({ children }: { children?: ReactNode }) {
+  return <>{children}</>
 }
