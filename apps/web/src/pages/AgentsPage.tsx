@@ -73,9 +73,11 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
           </div>
           <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#514537', maxWidth: '280px' }}>Rotating your key will immediately invalidate the existing token. All active sessions will terminate.</p>
-            <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', backgroundColor: 'transparent', border: '1px solid #514537', color: '#9e8e7e', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.15s' }}
+            <button
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', backgroundColor: 'transparent', border: '1px solid #514537', color: '#9e8e7e', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.15s' }}
               onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#fff'; el.style.color = '#fff' }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#514537'; el.style.color = '#9e8e7e' }}>
+              onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#514537'; el.style.color = '#9e8e7e' }}
+            >
               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>sync</span>
               Rotate Key
             </button>
@@ -110,7 +112,6 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
           <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#555' }}>lock</span>
         </div>
         <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '32px' }}>
-          {/* Spending Limits */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#C08532' }}>account_balance_wallet</span>
@@ -130,7 +131,6 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
               </div>
             </div>
           </div>
-          {/* Allowed Merchants */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#C08532' }}>verified_user</span>
@@ -148,14 +148,8 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
                   <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#4ae176' }}>check_circle</span>
                 </div>
               ))}
-              <button style={{ width: '100%', padding: '8px', border: '1px dashed rgba(255,255,255,0.1)', backgroundColor: 'transparent', color: '#737373', fontFamily: 'Space Grotesk', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.color = '#fff'; el.style.borderColor = 'rgba(255,255,255,0.2)' }}
-                onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.color = '#737373'; el.style.borderColor = 'rgba(255,255,255,0.1)' }}>
-                + Add Merchant
-              </button>
             </div>
           </div>
-          {/* Active Policies */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#C08532' }}>policy</span>
@@ -178,10 +172,9 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
 
       {/* Recent Events + Security */}
       <div style={{ display: 'grid', gridTemplateColumns: '4fr 8fr', gap: '12px' }}>
-        {/* Events */}
         <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px' }}>
           <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '12px' }}>Recent Events</span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             {EVENTS.map((e, i) => (
               <div key={i} style={{ display: 'flex', gap: '10px', padding: '8px 0', borderBottom: i < EVENTS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', fontFamily: 'Space Grotesk', fontSize: '11px' }}>
                 <span style={{ color: '#555', minWidth: '55px' }}>{e.time}</span>
@@ -191,8 +184,6 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
             ))}
           </div>
         </div>
-
-        {/* Security posture */}
         <div style={{ background: 'linear-gradient(135deg, #111111 0%, #080808 100%)', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', alignItems: 'center', gap: '24px' }}>
           <div style={{ width: '120px', height: '120px', position: 'relative', flexShrink: 0 }}>
             <svg width="120" height="120" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
@@ -206,7 +197,7 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Security Overview</span>
-            <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#737373', maxWidth: '340px', lineHeight: 1.6 }}>This agent is operating under a high-security mandate with 2FA required for key rotations and strict merchant whitelisting enforced at the kernel level.</p>
+            <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#737373', maxWidth: '340px', lineHeight: 1.6 }}>This agent operates under a high-security mandate with strict merchant whitelisting enforced at the kernel level.</p>
             <div style={{ display: 'flex', gap: '6px' }}>
               {['Encrypted', 'Isolated', 'Hardened'].map(tag => (
                 <span key={tag} style={{ padding: '3px 8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{tag}</span>

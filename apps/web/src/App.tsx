@@ -23,18 +23,20 @@ export default function App() {
     settings: { title: 'Authorization Console', subtitle: 'Settings' },
   }
 
+  const nav = (page: Page) => setCurrentPage(page)
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#080808' }}>
-      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+      <Sidebar currentPage={currentPage} onNavigate={nav} />
       <div style={{ marginLeft: '240px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         <TopBar title={pageMap[currentPage].title} subtitle={pageMap[currentPage].subtitle} />
         <main style={{ marginTop: '56px', padding: '12px', minHeight: 'calc(100vh - 56px)' }}>
-          {currentPage === 'dashboard' && <DashboardPage onNavigate={setCurrentPage} />}
-          {currentPage === 'setup' && <SetupPage onNavigate={setCurrentPage} />}
-          {currentPage === 'simulator' && <SimulatorPage onNavigate={setCurrentPage} />}
-          {currentPage === 'agents' && <AgentsPage onNavigate={setCurrentPage} />}
-          {currentPage === 'audit' && <AuditLogPage onNavigate={setCurrentPage} />}
-          {currentPage === 'settings' && <SettingsPage onNavigate={setCurrentPage} />}
+          {currentPage === 'dashboard' && <DashboardPage onNavigate={nav} />}
+          {currentPage === 'setup' && <SetupPage onNavigate={nav} />}
+          {currentPage === 'simulator' && <SimulatorPage onNavigate={nav} />}
+          {currentPage === 'agents' && <AgentsPage onNavigate={nav} />}
+          {currentPage === 'audit' && <AuditLogPage onNavigate={nav} />}
+          {currentPage === 'settings' && <SettingsPage onNavigate={nav} />}
         </main>
       </div>
     </div>
