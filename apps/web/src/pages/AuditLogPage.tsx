@@ -8,6 +8,9 @@ import type { AuditEventListItem, AuditEventListResponse, DecisionStatus } from 
 const STATUS_OPTIONS = ['ALL_EVENTS', 'APPROVED', 'DENIED', 'NEEDS_REVIEW'] as const;
 const RANGE_OPTIONS = ['LAST_24_HOURS', 'LAST_7_DAYS'] as const;
 
+type StatusOption = typeof STATUS_OPTIONS[number];
+type RangeOption = typeof RANGE_OPTIONS[number];
+
 function toDecisionStatus(value: string): DecisionStatus | undefined {
   if (value === 'APPROVED') return 'approved';
   if (value === 'DENIED') return 'denied';
@@ -21,8 +24,8 @@ function truncateTrace(value: string) {
 }
 
 export default function AuditLogPage() {
-  const [statusFilter, setStatusFilter] = useState(STATUS_OPTIONS[0]);
-  const [rangeFilter, setRangeFilter] = useState(RANGE_OPTIONS[0]);
+  const [statusFilter, setStatusFilter] = useState<StatusOption>('ALL_EVENTS');
+  const [rangeFilter, setRangeFilter] = useState<RangeOption>('LAST_24_HOURS');
   const [offset, setOffset] = useState(0);
   const [response, setResponse] = useState<AuditEventListResponse | null>(null);
   const agentId = useMemo(() => getStoredAgentId(), []);
@@ -70,7 +73,7 @@ export default function AuditLogPage() {
             <div className="audit-filters-left">
               <div className="filter-item">
                 <span>Status:</span>
-                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof STATUS_OPTIONS[number])}>
+                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusOption)}>
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -80,7 +83,7 @@ export default function AuditLogPage() {
               </div>
               <div className="filter-item">
                 <span>Range:</span>
-                <select value={rangeFilter} onChange={(event) => setRangeFilter(event.target.value as typeof RANGE_OPTIONS[number])}>
+                <select value={rangeFilter} onChange={(event) => setRangeFilter(event.target.value as RangeOption)}>
                   {RANGE_OPTIONS.map((option) => (
                     <option key={option} value={option}>
                       {option}
