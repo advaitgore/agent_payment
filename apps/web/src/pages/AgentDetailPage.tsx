@@ -199,7 +199,7 @@ export default function AgentDetailPage() {
                     <span className={request.status === 'denied' ? 'text-error' : 'text-tertiary'}>
                       {request.status === 'denied' ? 'AUTH_DENIED' : 'AUTH_SUCCESS'}
                     </span>
-                    <span>${Number(request.amount).toFixed(2)} -> {request.merchant}</span>
+                    <span>${Number(request.amount).toFixed(2)} {'->'} {request.merchant}</span>
                   </div>
                 ))}
               </div>
