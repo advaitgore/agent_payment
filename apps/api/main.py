@@ -13,13 +13,15 @@ from apps.api.routes.x402 import router as x402_router
 
 
 settings = get_settings()
+allowed_origins = [origin.strip() for origin in settings.cors_allow_origins.split(",") if origin.strip()]
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 
-# Allow local frontend dev servers
+# Allow local dev origins and Railway-hosted frontend domains.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=settings.cors_allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

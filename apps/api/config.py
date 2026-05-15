@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     )
     auth_secret_key: str = Field(default="dev-change-me", alias="AUTH_SECRET_KEY")
     auth_token_expire_minutes: int = Field(default=60 * 24, alias="AUTH_TOKEN_EXPIRE_MINUTES")
+    cors_allow_origins: str = Field(
+        default="http://localhost:5173,http://localhost:5174",
+        alias="CORS_ALLOW_ORIGINS",
+    )
+    cors_allow_origin_regex: str = Field(
+        default=r"https://.*\.up\.railway\.app",
+        alias="CORS_ALLOW_ORIGIN_REGEX",
+    )
 
 
 @lru_cache

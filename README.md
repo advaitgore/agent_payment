@@ -131,7 +131,7 @@ docker run -p 8000:8000 --env-file .env agentpay
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template)
 
-> Set `DATABASE_URL`, `ENVIRONMENT=production`, `DEBUG=false` in Railway environment variables.
+> Set `DATABASE_URL`, `ENVIRONMENT=production`, `DEBUG=false`, and `VITE_API_URL=https://<your-api-domain>` in Railway environment variables.
 
 ## Environment variables
 
@@ -140,5 +140,7 @@ docker run -p 8000:8000 --env-file .env agentpay
 | DATABASE_URL | postgresql+psycopg2://postgres:postgres@localhost:5432/agent_payment | PostgreSQL connection string |
 | ENVIRONMENT | development | Runtime environment name |
 | DEBUG | false | Enable FastAPI debug mode |
+| CORS_ALLOW_ORIGINS | http://localhost:5173,http://localhost:5174 | Comma-separated explicit CORS origins |
+| CORS_ALLOW_ORIGIN_REGEX | https://.*\\.up\\.railway\\.app | Regex for allowed CORS origins (supports Railway preview/prod domains) |
 | AGENTPAY_BASE_URL | http://localhost:8000 | Base URL used by the MCP server |
 | VITE_API_URL | http://localhost:8000 | Base URL used by the frontend dashboard |
