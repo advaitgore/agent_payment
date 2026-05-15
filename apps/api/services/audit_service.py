@@ -11,6 +11,7 @@ from apps.api.db.models import AuditEvent, Decision, DecisionStatus, PurchaseReq
 def list_audit_events(
     db: Session,
     *,
+    accessible_agent_ids: list[uuid.UUID] | None,
     agent_id: uuid.UUID | None,
     action: str | None,
     status: DecisionStatus | None,
@@ -24,6 +25,18 @@ def list_audit_events(
         .outerjoin(PurchaseRequest, AuditEvent.request_id == PurchaseRequest.id)
         .outerjoin(Decision, Decision.request_id == PurchaseRequest.id)
     )
+
+    if accessible_agent_ids is not None:
+        if not accessible_agent_ids:
+            return [], 0
+
+        accessible_agent_ids_str = [str(item) for item in accessible_agent_ids]
+        query = query.filter(
+            or_(
+                PurchaseRequest.agent_id.in_(accessible_agent_ids),
+                AuditEvent.details["agent_id"].astext.in_(accessible_agent_ids_str),
+            )
+        )
 
     if agent_id:
         query = query.filter(

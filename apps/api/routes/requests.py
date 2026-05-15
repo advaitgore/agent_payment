@@ -3,7 +3,8 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from apps.api.db.models import AuditEvent, Decision, DecisionStatus, PurchaseRequest, RequestStatus
+from apps.api.auth import get_current_user
+from apps.api.db.models import Agent, AuditEvent, Decision, DecisionStatus, Organization, PurchaseRequest, RequestStatus, User, UserOrganization
 from apps.api.db.session import get_db
 from apps.api.models.schemas import (
     PurchaseEvaluationResponse,
@@ -24,9 +25,23 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 )
 def list_requests(
     agent_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[PurchaseRequestRead]:
     """Return the most recent 50 purchase requests for an agent, newest first."""
+    authorized_agent = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Agent.id == agent_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not authorized_agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
     requests = (
         db.query(PurchaseRequest)
         .filter(PurchaseRequest.agent_id == agent_id)
@@ -45,9 +60,23 @@ def list_requests(
 )
 def create_request(
     req: PurchaseRequestCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PurchaseRequestRead:
     """Create a new purchase request."""
+    authorized_agent = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Agent.id == req.agent_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not authorized_agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
     purchase_request = PurchaseRequest(
         agent_id=req.agent_id,
         merchant=req.merchant,
@@ -71,11 +100,22 @@ def create_request(
 def evaluate_purchase_request(
     request_id: uuid.UUID,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PurchaseEvaluationResponse:
     """Evaluate a purchase request and create a decision."""
     # Load the purchase request
-    purchase_request = db.query(PurchaseRequest).filter(PurchaseRequest.id == request_id).first()
+    purchase_request = (
+        db.query(PurchaseRequest)
+        .join(Agent, Agent.id == PurchaseRequest.agent_id)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            PurchaseRequest.id == request_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
     if not purchase_request:
         raise HTTPException(status_code=404, detail="Request not found")
 

@@ -1,26 +1,34 @@
 import { useEffect, useState } from 'react'
 import type { Page } from '../App'
+import { createAgent, createMandate, createOrg } from '../lib/api'
+import { getStoredAgentId, getStoredMandateId, getStoredOrgId, getStoredOrgName, setStoredAgentId, setStoredMandateId, setStoredOrgId, setStoredOrgName } from '../lib/storage'
 
 interface Props {
   onNavigate?: (page: Page) => void
 }
 
 export default function SetupPage({ onNavigate: _onNavigate }: Props) {
-  const [orgName, setOrgName] = useState('')
+  const [orgId, setOrgId] = useState<string | null>(getStoredOrgId())
+  const [agentId, setAgentId] = useState<string | null>(getStoredAgentId())
+  const [mandateId, setMandateId] = useState<string | null>(getStoredMandateId())
+  const [orgName, setOrgName] = useState(getStoredOrgName() ?? '')
   const [agentName, setAgentName] = useState('')
   const [apiKey, setApiKey] = useState<string | null>(null)
   const [maxPer, setMaxPer] = useState('500.00')
   const [budget, setBudget] = useState('15000.00')
   const [merchantInput, setMerchantInput] = useState('')
   const [merchants, setMerchants] = useState<string[]>([])
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [loading, setLoading] = useState<'org' | 'agent' | 'mandate' | null>(null)
 
   useEffect(() => {
     document.title = 'Setup - AI_PAY_AUTH'
   }, [])
 
-  const step1Done = Boolean(orgName)
-  const step2Done = Boolean(agentName)
-  const step3Done = Boolean(merchants.length > 0)
+  const step1Done = Boolean(orgId)
+  const step2Done = Boolean(agentId)
+  const step3Done = Boolean(mandateId)
 
   function addMerchant() {
     if (!merchantInput.trim()) return
@@ -30,6 +38,84 @@ export default function SetupPage({ onNavigate: _onNavigate }: Props) {
 
   const handleCopy = () => {
     if (apiKey) navigator.clipboard.writeText(apiKey).catch(() => {})
+  }
+
+  const handleCreateOrg = async () => {
+    const normalizedName = orgName.trim()
+    if (!normalizedName || step1Done) return
+    setLoading('org')
+    setErrorMessage(null)
+    setStatusMessage(null)
+    try {
+      const organization = await createOrg({ name: normalizedName })
+      setOrgId(organization.id)
+      setStoredOrgId(organization.id)
+      setStoredOrgName(organization.name)
+      setOrgName(organization.name)
+      setStatusMessage('Organization created.')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create organization.')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleProvisionAgent = async () => {
+    if (!orgId || step2Done || !agentName.trim()) return
+    setLoading('agent')
+    setErrorMessage(null)
+    setStatusMessage(null)
+    try {
+      const agent = await createAgent({
+        org_id: orgId,
+        name: agentName.trim(),
+      })
+      setAgentId(agent.id)
+      setStoredAgentId(agent.id)
+      if (agent.api_key) setApiKey(agent.api_key)
+      setStatusMessage('Agent provisioned.')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to provision agent.')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleSaveMandate = async () => {
+    if (!agentId || step3Done) return
+    const maxPerValue = Number(maxPer)
+    const budgetValue = Number(budget)
+    if (!Number.isFinite(maxPerValue) || maxPerValue <= 0) {
+      setErrorMessage('Transaction limit must be a positive number.')
+      return
+    }
+    if (!Number.isFinite(budgetValue) || budgetValue <= 0) {
+      setErrorMessage('Monthly budget must be a positive number.')
+      return
+    }
+    if (merchants.length === 0) {
+      setErrorMessage('Add at least one merchant before saving mandate.')
+      return
+    }
+
+    setLoading('mandate')
+    setErrorMessage(null)
+    setStatusMessage(null)
+    try {
+      const mandate = await createMandate({
+        agent_id: agentId,
+        max_per_transaction: maxPerValue,
+        approval_threshold: budgetValue,
+        allowed_merchants: merchants,
+      })
+      setMandateId(mandate.id)
+      setStoredMandateId(mandate.id)
+      setStatusMessage('Mandate saved.')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to save mandate.')
+    } finally {
+      setLoading(null)
+    }
   }
 
   return (
@@ -66,11 +152,11 @@ export default function SetupPage({ onNavigate: _onNavigate }: Props) {
             />
           </div>
           <button
-            onClick={() => {}}
-            disabled={step1Done || !orgName}
-            style={{ padding: '8px 16px', backgroundColor: step1Done || !orgName ? '#1A1A1A' : '#C08532', color: step1Done || !orgName ? '#555' : '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: step1Done || !orgName ? 'not-allowed' : 'pointer' }}
+            onClick={handleCreateOrg}
+            disabled={step1Done || !orgName.trim() || loading === 'org'}
+            style={{ padding: '8px 16px', backgroundColor: step1Done || !orgName.trim() || loading === 'org' ? '#1A1A1A' : '#C08532', color: step1Done || !orgName.trim() || loading === 'org' ? '#555' : '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: step1Done || !orgName.trim() || loading === 'org' ? 'not-allowed' : 'pointer' }}
           >
-            Create Org
+            {loading === 'org' ? 'Creating...' : 'Create Org'}
           </button>
         </div>
 
@@ -108,11 +194,11 @@ export default function SetupPage({ onNavigate: _onNavigate }: Props) {
             </div>
           )}
           <button
-            onClick={() => setApiKey('sk_live_**redacted**')}
-            disabled={step2Done || !agentName}
-            style={{ padding: '8px 16px', backgroundColor: step2Done || !agentName ? '#1A1A1A' : '#C08532', color: step2Done || !agentName ? '#555' : '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: step2Done || !agentName ? 'not-allowed' : 'pointer' }}
+            onClick={handleProvisionAgent}
+            disabled={step2Done || !agentName.trim() || loading === 'agent'}
+            style={{ padding: '8px 16px', backgroundColor: step2Done || !agentName.trim() || loading === 'agent' ? '#1A1A1A' : '#C08532', color: step2Done || !agentName.trim() || loading === 'agent' ? '#555' : '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: step2Done || !agentName.trim() || loading === 'agent' ? 'not-allowed' : 'pointer' }}
           >
-            Provision Agent
+            {loading === 'agent' ? 'Provisioning...' : 'Provision Agent'}
           </button>
         </div>
 
@@ -161,13 +247,24 @@ export default function SetupPage({ onNavigate: _onNavigate }: Props) {
             </div>
           </div>
           <button
-            onClick={() => {}}
-            style={{ padding: '8px 16px', backgroundColor: '#C08532', color: '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}
+            onClick={handleSaveMandate}
+            disabled={step3Done || loading === 'mandate'}
+            style={{ padding: '8px 16px', backgroundColor: step3Done || loading === 'mandate' ? '#1A1A1A' : '#C08532', color: step3Done || loading === 'mandate' ? '#555' : '#000', border: 'none', borderRadius: '2px', fontFamily: 'Space Grotesk', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: step3Done || loading === 'mandate' ? 'not-allowed' : 'pointer' }}
           >
-            Save Mandate
+            {loading === 'mandate' ? 'Saving...' : 'Save Mandate'}
           </button>
         </div>
       </div>
+      {statusMessage && (
+        <div style={{ backgroundColor: 'rgba(74,225,118,0.08)', border: '1px solid rgba(74,225,118,0.25)', color: '#4ae176', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
+          {statusMessage}
+        </div>
+      )}
+      {errorMessage && (
+        <div style={{ backgroundColor: 'rgba(255,180,171,0.08)', border: '1px solid rgba(255,180,171,0.25)', color: '#ffb4ab', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
+          {errorMessage}
+        </div>
+      )}
     </div>
   )
 }

@@ -18,6 +18,8 @@ class Settings(BaseSettings):
         default="postgresql+psycopg2://postgres:postgres@localhost:5432/agent_payment",
         alias="DATABASE_URL",
     )
+    auth_secret_key: str = Field(default="dev-change-me", alias="AUTH_SECRET_KEY")
+    auth_token_expire_minutes: int = Field(default=60 * 24, alias="AUTH_TOKEN_EXPIRE_MINUTES")
 
 
 @lru_cache

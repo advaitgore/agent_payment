@@ -1,17 +1,43 @@
 import { useState } from 'react'
 import type { Page } from '../App'
+import { rotateAgentKey } from '../lib/api'
+import { getStoredAgentId } from '../lib/storage'
 
 interface Props { onNavigate?: (page: Page) => void }
 
 export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
   const [showKey, setShowKey] = useState(false)
   const [copied, setCopied] = useState(false)
-  const apiKey = 'api_key_redacted_replace_after_provisioning'
+  const [apiKey, setApiKey] = useState('api_key_redacted_replace_after_provisioning')
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isRotating, setIsRotating] = useState(false)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(apiKey).catch(() => {})
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleRotateKey = async () => {
+    const storedAgentId = getStoredAgentId()
+    if (!storedAgentId) {
+      setErrorMessage('No agent selected. Complete setup before rotating keys.')
+      setStatusMessage(null)
+      return
+    }
+    setIsRotating(true)
+    setErrorMessage(null)
+    setStatusMessage(null)
+    try {
+      const updated = await rotateAgentKey(storedAgentId)
+      if (updated.api_key) setApiKey(updated.api_key)
+      setStatusMessage('API key rotated.')
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to rotate API key.')
+    } finally {
+      setIsRotating(false)
+    }
   }
 
   const EVENTS = [
@@ -37,10 +63,10 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button style={{ padding: '8px 16px', backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px' }}>
+          <button title="Deactivate is not available yet." disabled style={{ padding: '8px 16px', backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', color: '#555', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'not-allowed', borderRadius: '2px' }}>
             Deactivate
           </button>
-          <button style={{ padding: '8px 16px', backgroundColor: '#C08532', color: '#000', border: 'none', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px' }}>
+          <button title="Edit Config is not available yet." disabled style={{ padding: '8px 16px', backgroundColor: '#1A1A1A', color: '#555', border: 'none', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'not-allowed', borderRadius: '2px' }}>
             Edit Config
           </button>
         </div>
@@ -74,12 +100,14 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
           <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#514537', maxWidth: '280px' }}>Rotating your key will immediately invalidate the existing token. All active sessions will terminate.</p>
             <button
+              onClick={handleRotateKey}
+              disabled={isRotating}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', backgroundColor: 'transparent', border: '1px solid #514537', color: '#9e8e7e', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.15s' }}
               onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#fff'; el.style.color = '#fff' }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#514537'; el.style.color = '#9e8e7e' }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>sync</span>
-              Rotate Key
+              {isRotating ? 'Rotating...' : 'Rotate Key'}
             </button>
           </div>
         </div>
@@ -206,6 +234,16 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
           </div>
         </div>
       </div>
+      {statusMessage && (
+        <div style={{ backgroundColor: 'rgba(74,225,118,0.08)', border: '1px solid rgba(74,225,118,0.25)', color: '#4ae176', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
+          {statusMessage}
+        </div>
+      )}
+      {errorMessage && (
+        <div style={{ backgroundColor: 'rgba(255,180,171,0.08)', border: '1px solid rgba(255,180,171,0.25)', color: '#ffb4ab', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
+          {errorMessage}
+        </div>
+      )}
     </div>
   )
 }

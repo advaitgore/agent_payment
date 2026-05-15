@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Page } from '../App'
+import { clearStoredSessionData, getStoredApiBaseUrl, setStoredApiBaseUrl } from '../lib/storage'
 
 interface Props {
   onNavigate: (page: Page) => void
@@ -41,6 +43,27 @@ const S: Record<string, CSSProperties> = {
 }
 
 export default function SettingsPage({ onNavigate: _onNavigate }: Props) {
+  const [baseUrl, setBaseUrl] = useState(getStoredApiBaseUrl() ?? (import.meta.env.VITE_API_URL || 'http://localhost:8000'))
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const handleSave = () => {
+    const normalized = baseUrl.trim()
+    if (!normalized) {
+      setErrorMessage('Base URL cannot be empty.')
+      setStatusMessage(null)
+      return
+    }
+    setStoredApiBaseUrl(normalized)
+    setStatusMessage('Settings saved.')
+    setErrorMessage(null)
+  }
+
+  const handleReset = () => {
+    clearStoredSessionData()
+    window.location.reload()
+  }
+
   return (
     <div style={S.page}>
       <div style={S.header}>
@@ -55,14 +78,15 @@ export default function SettingsPage({ onNavigate: _onNavigate }: Props) {
           <label style={{ ...S.label, display: 'block', marginBottom: '4px' }}>Base URL</label>
           <input
             style={S.input}
-            defaultValue={import.meta.env.VITE_API_URL || 'http://localhost:8000'}
+            value={baseUrl}
+            onChange={e => setBaseUrl(e.target.value)}
             onFocus={e => { e.currentTarget.style.borderColor = '#C08532' }}
             onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
           />
-          <p style={{ ...S.desc, marginTop: '6px' }}>Set VITE_API_URL in your .env to change this.</p>
+          <p style={{ ...S.desc, marginTop: '6px' }}>Set VITE_API_URL in your .env or override it here for this browser.</p>
         </div>
         <div style={S.row}>
-          <button style={S.btn}>Save</button>
+          <button style={S.btn} onClick={handleSave}>Save</button>
         </div>
       </div>
 
@@ -94,9 +118,19 @@ export default function SettingsPage({ onNavigate: _onNavigate }: Props) {
             <div style={S.label}>Reset session data</div>
             <div style={S.desc}>Clears stored org, agent, and mandate IDs from this browser session.</div>
           </div>
-          <button style={S.btnDanger} onClick={() => { sessionStorage.clear(); window.location.reload() }}>Reset</button>
+          <button style={S.btnDanger} onClick={handleReset}>Reset</button>
         </div>
       </div>
+      {statusMessage && (
+        <div style={{ backgroundColor: 'rgba(74,225,118,0.08)', border: '1px solid rgba(74,225,118,0.25)', color: '#4ae176', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
+          {statusMessage}
+        </div>
+      )}
+      {errorMessage && (
+        <div style={{ backgroundColor: 'rgba(255,180,171,0.08)', border: '1px solid rgba(255,180,171,0.25)', color: '#ffb4ab', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
+          {errorMessage}
+        </div>
+      )}
     </div>
   )
 }

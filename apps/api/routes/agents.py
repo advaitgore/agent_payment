@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from apps.api.db.models import Agent, AuditEvent, Organization, PurchaseRequest, RequestStatus
+from apps.api.db.models import Agent, AuditEvent, Organization, PurchaseRequest, RequestStatus, User, UserOrganization
 from apps.api.db.session import get_db
 from apps.api.models.schemas import AgentCreate, AgentRead
-from apps.api.auth import get_agent_from_api_key
+from apps.api.auth import get_agent_from_api_key, get_current_user
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -33,11 +33,20 @@ def get_current_agent(agent: Agent = Depends(get_agent_from_api_key)) -> AgentRe
 )
 def create_agent(
     agent: AgentCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AgentRead:
     """Create a new agent."""
     # Verify organization exists
-    org = db.query(Organization).filter(Organization.id == agent.org_id).first()
+    org = (
+        db.query(Organization)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Organization.id == agent.org_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
@@ -61,10 +70,20 @@ def create_agent(
 )
 def list_agents(
     org_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[AgentRead]:
     """List all agents for an organization."""
-    agents = db.query(Agent).filter(Agent.org_id == org_id).all()
+    agents = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Agent.org_id == org_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .all()
+    )
     return [AgentRead.model_validate(agent) for agent in agents]
 
 
@@ -76,9 +95,19 @@ def list_agents(
 )
 def get_agent(
     agent_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AgentRead:
-    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    agent = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Agent.id == agent_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     return AgentRead.model_validate(agent)
@@ -92,9 +121,19 @@ def get_agent(
 )
 def rotate_agent_key(
     agent_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AgentRead:
-    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    agent = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Agent.id == agent_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
@@ -118,9 +157,23 @@ def rotate_agent_key(
 )
 def agent_spending(
     agent_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """Return spending ledger summary for an agent."""
+    authorized_agent = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Agent.id == agent_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not authorized_agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
     # total requests
     total_requests = db.query(func.count(PurchaseRequest.id)).filter(PurchaseRequest.agent_id == agent_id).scalar() or 0
 

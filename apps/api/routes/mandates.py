@@ -3,7 +3,8 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from apps.api.db.models import Agent, AuditEvent, Mandate
+from apps.api.auth import get_current_user
+from apps.api.db.models import Agent, AuditEvent, Mandate, Organization, User, UserOrganization
 from apps.api.db.session import get_db
 from apps.api.models.schemas import MandateCreate, MandateRead, MandateUpdate
 
@@ -18,11 +19,21 @@ router = APIRouter(prefix="/mandates", tags=["mandates"])
 )
 def create_mandate(
     mandate: MandateCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MandateRead:
     """Create a new mandate for an agent."""
     # Verify agent exists
-    agent = db.query(Agent).filter(Agent.id == mandate.agent_id).first()
+    agent = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Agent.id == mandate.agent_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
@@ -52,9 +63,20 @@ def create_mandate(
 )
 def list_mandates(
     agent_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[MandateRead]:
-    mandates = db.query(Mandate).filter(Mandate.agent_id == agent_id).all()
+    mandates = (
+        db.query(Mandate)
+        .join(Agent, Agent.id == Mandate.agent_id)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Mandate.agent_id == agent_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .all()
+    )
     return [MandateRead.model_validate(mandate) for mandate in mandates]
 
 
@@ -66,10 +88,21 @@ def list_mandates(
 )
 def get_mandate(
     mandate_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MandateRead:
     """Get a mandate by ID."""
-    mandate = db.query(Mandate).filter(Mandate.id == mandate_id).first()
+    mandate = (
+        db.query(Mandate)
+        .join(Agent, Agent.id == Mandate.agent_id)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Mandate.id == mandate_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
     if not mandate:
         raise HTTPException(status_code=404, detail="Mandate not found")
     return MandateRead.model_validate(mandate)
@@ -84,9 +117,20 @@ def get_mandate(
 def update_mandate(
     mandate_id: uuid.UUID,
     payload: MandateUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> MandateRead:
-    mandate = db.query(Mandate).filter(Mandate.id == mandate_id).first()
+    mandate = (
+        db.query(Mandate)
+        .join(Agent, Agent.id == Mandate.agent_id)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(
+            Mandate.id == mandate_id,
+            UserOrganization.user_id == current_user.id,
+        )
+        .first()
+    )
     if not mandate:
         raise HTTPException(status_code=404, detail="Mandate not found")
 

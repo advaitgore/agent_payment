@@ -2,6 +2,26 @@ export type RequestStatus = 'pending' | 'approved' | 'denied' | 'needs_review';
 
 export type DecisionStatus = 'approved' | 'denied' | 'needs_review';
 
+export interface UserRead {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
+export interface UserSignup {
+  email: string;
+  password: string;
+}
+
+export interface UserLogin {
+  email: string;
+  password: string;
+}
+
+export interface AuthSessionResponse {
+  user: UserRead;
+}
+
 export interface PurchaseRequestCreate {
   agent_id: string;
   merchant: string;

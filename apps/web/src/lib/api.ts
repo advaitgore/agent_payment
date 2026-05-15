@@ -12,17 +12,27 @@ import type {
   SpendingSummary,
   AuditEventListResponse,
   DecisionStatus,
+  UserLogin,
+  UserRead,
+  UserSignup,
+  AuthSessionResponse,
 } from '../types/api';
+import { getStoredApiBaseUrl } from './storage';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const DEFAULT_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+
+function getBaseUrl(): string {
+  return getStoredApiBaseUrl()?.trim() || DEFAULT_BASE_URL;
+}
 
 async function apiCall<T>(endpoint: string, method: string = 'GET', body?: unknown): Promise<T> {
-  const url = `${BASE_URL}${endpoint}`;
+  const url = `${getBaseUrl()}${endpoint}`;
   const opts: RequestInit = {
     method,
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
   };
   if (body) opts.body = JSON.stringify(body);
   const resp = await fetch(url, opts);
@@ -110,4 +120,20 @@ export async function listAuditEvents(params: {
   const query = search.toString();
   const suffix = query ? `?${query}` : '';
   return apiCall<AuditEventListResponse>(`/audit-events${suffix}`);
+}
+
+export async function signup(payload: UserSignup): Promise<AuthSessionResponse> {
+  return apiCall<AuthSessionResponse>('/auth/signup', 'POST', payload);
+}
+
+export async function login(payload: UserLogin): Promise<AuthSessionResponse> {
+  return apiCall<AuthSessionResponse>('/auth/login', 'POST', payload);
+}
+
+export async function getMe(): Promise<UserRead> {
+  return apiCall<UserRead>('/auth/me');
+}
+
+export async function logout(): Promise<{ ok: boolean }> {
+  return apiCall<{ ok: boolean }>('/auth/logout', 'POST');
 }
