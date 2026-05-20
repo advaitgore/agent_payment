@@ -20,6 +20,17 @@ class Settings(BaseSettings):
     )
     auth_secret_key: str = Field(default="dev-change-me", alias="AUTH_SECRET_KEY")
     auth_token_expire_minutes: int = Field(default=60 * 24, alias="AUTH_TOKEN_EXPIRE_MINUTES")
+    allowed_origins: list[str] = Field(
+        default=["http://localhost:5173", "http://localhost:5174"],
+        alias="ALLOWED_ORIGINS",
+    )
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if "ALLOWED_ORIGINS" in data or (hasattr(self, "allowed_origins") and isinstance(self.allowed_origins, str)):
+            origins_str = data.get("ALLOWED_ORIGINS") or self.allowed_origins
+            if isinstance(origins_str, str):
+                self.allowed_origins = [origin.strip() for origin in origins_str.split(",")]
 
 
 @lru_cache
