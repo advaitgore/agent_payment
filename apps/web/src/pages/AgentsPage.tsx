@@ -1,38 +1,93 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Page } from '../App'
-import { rotateAgentKey } from '../lib/api'
+import { listAgents, rotateAgentKey, getSpendingSummary, listMandates } from '../lib/api'
+import type { AgentRead, SpendingSummary, MandateRead } from '../types/api'
 import { getStoredAgentId } from '../lib/storage'
+import { tokens } from '../tokens'
 
 interface Props { onNavigate?: (page: Page) => void }
 
 export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
+  const [agents, setAgents] = useState<AgentRead[]>([])
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+  const [spendingSummaries, setSpendingSummaries] = useState<Record<string, SpendingSummary>>({})
+  const [mandates, setMandates] = useState<Record<string, MandateRead[]>>({})
   const [showKey, setShowKey] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [apiKey, setApiKey] = useState('api_key_redacted_replace_after_provisioning')
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isRotating, setIsRotating] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  useEffect(() => {
+    const loadAgents = async () => {
+      try {
+        setIsLoading(true)
+        const fetchedAgents = await listAgents()
+        setAgents(fetchedAgents)
+        
+        // Set first agent as selected, or try to restore previously selected
+        const storedId = getStoredAgentId()
+        if (storedId && fetchedAgents.some(a => a.id === storedId)) {
+          setSelectedAgentId(storedId)
+        } else if (fetchedAgents.length > 0) {
+          setSelectedAgentId(fetchedAgents[0].id)
+        }
+
+        // Load spending summaries for all agents
+        const summaries: Record<string, SpendingSummary> = {}
+        const mandatesList: Record<string, MandateRead[]> = {}
+        for (const agent of fetchedAgents) {
+          try {
+            const summary = await getSpendingSummary(agent.id)
+            summaries[agent.id] = summary
+          } catch (_err) {
+            // If spending summary fails, just skip it
+          }
+          try {
+            const agentMandates = await listMandates(agent.id)
+            mandatesList[agent.id] = agentMandates
+          } catch (_err) {
+            // If mandates fail, just skip it
+          }
+        }
+        setSpendingSummaries(summaries)
+        setMandates(mandatesList)
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to load agents')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadAgents()
+  }, [])
+
+  const selectedAgent = agents.find(a => a.id === selectedAgentId)
+  const selectedSummary = selectedAgentId ? spendingSummaries[selectedAgentId] : null
+  const selectedMandates = selectedAgentId ? mandates[selectedAgentId] : []
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(apiKey).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (selectedAgent?.api_key) {
+      navigator.clipboard.writeText(selectedAgent.api_key).catch(() => {})
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   const handleRotateKey = async () => {
-    const storedAgentId = getStoredAgentId()
-    if (!storedAgentId) {
-      setErrorMessage('No agent selected. Complete setup before rotating keys.')
-      setStatusMessage(null)
+    if (!selectedAgentId) {
+      setErrorMessage('No agent selected.')
       return
     }
     setIsRotating(true)
     setErrorMessage(null)
     setStatusMessage(null)
     try {
-      const updated = await rotateAgentKey(storedAgentId)
-      if (updated.api_key) setApiKey(updated.api_key)
-      setStatusMessage('API key rotated.')
+      const updated = await rotateAgentKey(selectedAgentId)
+      setAgents(agents.map(a => a.id === selectedAgentId ? updated : a))
+      setStatusMessage('API key rotated successfully.')
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to rotate API key.')
     } finally {
@@ -40,207 +95,215 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
     }
   }
 
-  const EVENTS = [
-    { time: '14:22:01', event: 'AUTH_SUCCESS', detail: '$42.00 → STRIPE', color: '#4ae176' },
-    { time: '14:18:45', event: 'AUTH_SUCCESS', detail: '$12.50 → STRIPE', color: '#4ae176' },
-    { time: '13:55:12', event: 'AUTH_DENIED', detail: 'EXCEED_VOL_LIMIT', color: '#ffb4ab' },
-    { time: '12:10:30', event: 'KEY_ROTATED', detail: 'USER_INITIATED', color: '#e5e2e1' },
-  ]
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      const fetchedAgents = await listAgents()
+      setAgents(fetchedAgents)
+      const summaries: Record<string, SpendingSummary> = {}
+      const mandatesList: Record<string, MandateRead[]> = {}
+      for (const agent of fetchedAgents) {
+        try {
+          const summary = await getSpendingSummary(agent.id)
+          summaries[agent.id] = summary
+        } catch (_err) {
+          // If spending summary fails, just skip it
+        }
+        try {
+          const agentMandates = await listMandates(agent.id)
+          mandatesList[agent.id] = agentMandates
+        } catch (_err) {
+          // If mandates fail, just skip it
+        }
+      }
+      setSpendingSummaries(summaries)
+      setMandates(mandatesList)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
-  const HEALTH = [28, 46, 33, 72, 55]
+  if (isLoading) {
+    return (
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: `${tokens.spacing.md} 0` }}>
+        <div style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.md, color: tokens.colors.text.tertiary }}>Loading agents...</div>
+      </div>
+    )
+  }
 
-  return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '8px 0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Agent header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <h1 style={{ fontFamily: 'Inter', fontSize: '28px', fontWeight: 600, color: '#fff', letterSpacing: '-0.02em' }}>trading-bot-alpha-v2</h1>
-            <span style={{ padding: '2px 8px', backgroundColor: 'rgba(0,167,75,0.1)', color: '#4ae176', fontFamily: 'Space Grotesk', fontSize: '10px', borderRadius: '2px', border: '1px solid rgba(74,225,118,0.2)' }}>ACTIVE</span>
-          </div>
-          <p style={{ fontFamily: 'Space Grotesk', fontSize: '11px', color: '#737373', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            AGENT_ID: <span style={{ color: '#aaa' }}>0x7472_6164_696e_675f_626f_74</span>
+  if (agents.length === 0) {
+    return (
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: `${tokens.spacing.md} 0`, display: 'flex', flexDirection: 'column', gap: tokens.spacing.md }}>
+        <div style={{ borderBottom: `1px solid ${tokens.colors.border}`, paddingBottom: tokens.spacing.lg }}>
+          <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.display, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, letterSpacing: tokens.typography.letterSpacing.tight }}>Agents</h1>
+          <p style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, color: tokens.colors.text.tertiary, letterSpacing: tokens.typography.letterSpacing.wide, marginTop: tokens.spacing.sm, textTransform: 'uppercase' }}>
+            No agents configured
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button title="Deactivate is not available yet." disabled style={{ padding: '8px 16px', backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', color: '#555', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'not-allowed', borderRadius: '2px' }}>
-            Deactivate
+        <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, padding: '32px 16px', textAlign: 'center' }}>
+          <p style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.md, color: tokens.colors.text.tertiary }}>Create your first agent in the Setup section.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: `${tokens.spacing.md} 0`, display: 'flex', flexDirection: 'column', gap: tokens.spacing.md }}>
+      {/* Agent selector and header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `1px solid ${tokens.colors.border}`, paddingBottom: tokens.spacing.lg }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacing.md, marginBottom: tokens.spacing.sm }}>
+            {selectedAgent && (
+              <>
+                <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.display, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, letterSpacing: tokens.typography.letterSpacing.tight }}>{selectedAgent.name}</h1>
+                <span style={{ padding: '2px 8px', backgroundColor: tokens.colors.successBg, color: tokens.colors.success, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, borderRadius: tokens.radius.sm, border: `1px solid ${tokens.colors.successBorder}` }}>ACTIVE</span>
+              </>
+            )}
+          </div>
+          {selectedAgent && (
+            <p style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, color: tokens.colors.text.tertiary, letterSpacing: tokens.typography.letterSpacing.wide, textTransform: 'uppercase' }}>
+              AGENT_ID: <span style={{ color: '#aaa' }}>{selectedAgent.id.substring(0, 16)}...</span>
+            </p>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: tokens.spacing.sm, alignItems: 'center' }}>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            style={{
+              padding: `${tokens.spacing.sm} ${tokens.spacing.md}`,
+              border: `1px solid ${tokens.colors.border}`,
+              backgroundColor: 'transparent',
+              color: tokens.colors.text.secondary,
+              fontSize: tokens.typography.fontSize.xs,
+              fontWeight: tokens.typography.fontWeight.semibold,
+              letterSpacing: tokens.typography.letterSpacing.wider,
+              textTransform: 'uppercase',
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              opacity: isRefreshing ? 0.6 : 1,
+              transition: tokens.transitions.fast,
+              borderRadius: tokens.radius.sm,
+            }}
+          >
+            {isRefreshing ? '⟳ Refreshing...' : '⟳ Refresh'}
           </button>
-          <button title="Edit Config is not available yet." disabled style={{ padding: '8px 16px', backgroundColor: '#1A1A1A', color: '#555', border: 'none', fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'not-allowed', borderRadius: '2px' }}>
-            Edit Config
-          </button>
+          {agents.length > 1 && (
+            <select
+              value={selectedAgentId || ''}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              style={{
+                padding: `${tokens.spacing.sm} ${tokens.spacing.md}`, backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`,
+                color: tokens.colors.text.secondary, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, cursor: 'pointer'
+              }}
+            >
+              {agents.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
-      {/* Bento grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '7fr 5fr', gap: '12px' }}>
-        {/* API Key Management */}
-        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>API Key Management</span>
-            <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#555' }}>CREATED: 2023.10.24 14:02 UTC</span>
-          </div>
-          <div>
-            <div style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>SECRET_KEY</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div style={{ flex: 1, backgroundColor: '#080808', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#fff', letterSpacing: '0.15em', fontWeight: 700 }}>
-                  {showKey ? apiKey : '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '}
-                </span>
-                <button onClick={() => setShowKey(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C08532', display: 'flex', alignItems: 'center', gap: '4px', fontFamily: 'Space Grotesk', fontSize: '10px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>{showKey ? 'visibility_off' : 'visibility'}</span>
-                  {showKey ? 'HIDE' : 'SHOW'}
+      {/* Main content */}
+      {selectedAgent && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: tokens.spacing.md }}>
+            {/* API Key Management */}
+            <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, padding: tokens.spacing.lg, display: 'flex', flexDirection: 'column', gap: tokens.spacing.lg }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>API Key Management</span>
+                <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.muted }}>CREATED: {new Date(selectedAgent.created_at).toLocaleString()}</span>
+              </div>
+              <div>
+                <div style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider, marginBottom: tokens.spacing.sm }}>SECRET_KEY</div>
+                <div style={{ display: 'flex', gap: tokens.spacing.sm }}>
+                  <div style={{ flex: 1, backgroundColor: tokens.colors.background, border: `1px solid ${tokens.colors.border}`, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.md, color: tokens.colors.text.primary, letterSpacing: tokens.typography.letterSpacing.widest, fontWeight: tokens.typography.fontWeight.bold }}>
+                      {showKey && selectedAgent.api_key ? selectedAgent.api_key : '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '}
+                    </span>
+                    <button onClick={() => setShowKey(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: tokens.colors.accent, display: 'flex', alignItems: 'center', gap: tokens.spacing.sm, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>{showKey ? 'visibility_off' : 'visibility'}</span>
+                      {showKey ? 'HIDE' : 'SHOW'}
+                    </button>
+                  </div>
+                  <button onClick={handleCopy} style={{ padding: '10px 12px', backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, color: copied ? tokens.colors.success : tokens.colors.text.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{copied ? 'check' : 'content_copy'}</span>
+                  </button>
+                </div>
+              </div>
+              <div style={{ marginTop: 'auto', borderTop: `1px solid ${tokens.colors.borderSubtle}`, paddingTop: tokens.spacing.lg, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.md, color: '#514537', maxWidth: '280px' }}>Rotating your key will immediately invalidate the existing token. All active sessions will terminate.</p>
+                <button
+                  onClick={handleRotateKey}
+                  disabled={isRotating}
+                  style={{ display: 'flex', alignItems: 'center', gap: tokens.spacing.sm, padding: '7px 14px', backgroundColor: 'transparent', border: '1px solid #514537', color: '#9e8e7e', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, letterSpacing: tokens.typography.letterSpacing.wider, textTransform: 'uppercase', cursor: 'pointer', borderRadius: tokens.radius.sm, transition: tokens.transitions.fast }}
+                  onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = tokens.colors.text.primary; el.style.color = tokens.colors.text.primary }}
+                  onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#514537'; el.style.color = '#9e8e7e' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>sync</span>
+                  {isRotating ? 'Rotating...' : 'Rotate Key'}
                 </button>
               </div>
-              <button onClick={handleCopy} style={{ padding: '10px 12px', backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', color: copied ? '#4ae176' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{copied ? 'check' : 'content_copy'}</span>
-              </button>
             </div>
-          </div>
-          <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#514537', maxWidth: '280px' }}>Rotating your key will immediately invalidate the existing token. All active sessions will terminate.</p>
-            <button
-              onClick={handleRotateKey}
-              disabled={isRotating}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', backgroundColor: 'transparent', border: '1px solid #514537', color: '#9e8e7e', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: '2px', transition: 'all 0.15s' }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#fff'; el.style.color = '#fff' }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.borderColor = '#514537'; el.style.color = '#9e8e7e' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>sync</span>
-              {isRotating ? 'Rotating...' : 'Rotate Key'}
-            </button>
-          </div>
-        </div>
 
-        {/* System Health */}
-        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>System Health</span>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '48px' }}>
-            {HEALTH.map((h, i) => (
-              <div key={i} style={{ flex: 1, backgroundColor: `rgba(74,225,118,${h / 100})`, height: `${h}%`, borderRadius: '1px' }} />
-            ))}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <span style={{ display: 'block', fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Latency</span>
-              <span style={{ fontFamily: 'Space Grotesk', fontSize: '22px', fontWeight: 700, color: '#fff' }}>24ms</span>
+            {/* Spending Summary */}
+          {selectedSummary && (
+            <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, overflow: 'hidden' }}>
+              <div style={{ padding: `10px ${tokens.spacing.lg}`, borderBottom: `1px solid ${tokens.colors.border}`, backgroundColor: 'rgba(26,26,26,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>Spending Summary</span>
+              </div>
+              <div style={{ padding: tokens.spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '32px' }}>
+                <div>
+                  <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Total Spent</span>
+                  <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${selectedSummary.total_spent.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div>
+                  <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Requests</span>
+                  <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>{selectedSummary.total_requests}</span>
+                </div>
+                <div>
+                  <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Approval Rate</span>
+                  <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.success }}>
+                    {selectedSummary.total_requests > 0 ? ((selectedSummary.approved / selectedSummary.total_requests) * 100).toFixed(1) : '0.0'}%
+                  </span>
+                </div>
+              </div>
             </div>
-            <div>
-              <span style={{ display: 'block', fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Success Rate</span>
-              <span style={{ fontFamily: 'Space Grotesk', fontSize: '22px', fontWeight: 700, color: '#4ae176' }}>99.98%</span>
-            </div>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* Mandate Summary */}
-      <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
-        <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(26,26,26,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Current Mandate Summary</span>
-          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#555' }}>lock</span>
-        </div>
-        <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '32px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#C08532' }}>account_balance_wallet</span>
-              <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Spending Limits</span>
-            </div>
-            <div style={{ backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Monthly cap</span>
-                <span style={{ fontFamily: 'Inter', fontSize: '22px', fontWeight: 600, color: '#fff' }}>$500.00</span>
+          {/* Mandates */}
+          {selectedMandates && selectedMandates.length > 0 && (
+            <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, overflow: 'hidden' }}>
+              <div style={{ padding: `10px ${tokens.spacing.lg}`, borderBottom: `1px solid ${tokens.colors.border}`, backgroundColor: 'rgba(26,26,26,0.5)' }}>
+                <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>Spending Limits</span>
               </div>
-              <div style={{ width: '100%', backgroundColor: '#080808', height: '3px', borderRadius: '1px' }}>
-                <div style={{ width: '35%', height: '100%', backgroundColor: '#C08532', borderRadius: '1px' }} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373' }}>USED: $175.40</span>
-                <span style={{ fontFamily: 'Space Grotesk', fontSize: '10px', color: '#fff' }}>REMAINING: $324.60</span>
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#C08532' }}>verified_user</span>
-              <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Allowed Merchants</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {['Stripe', 'AWS', 'GitHub'].map(m => (
-                <div key={m} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '24px', height: '24px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '12px', color: '#737373' }}>credit_card</span>
+              <div style={{ padding: tokens.spacing.lg }}>
+                {selectedMandates.map((mandate) => (
+                  <div key={mandate.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', paddingBottom: tokens.spacing.lg }}>
+                    <div>
+                      <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Monthly Budget</span>
+                      <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${mandate.monthly_limit?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || 'N/A'}</span>
                     </div>
-                    <span style={{ fontFamily: 'Space Grotesk', fontSize: '12px', color: '#fff' }}>{m}</span>
+                    <div>
+                      <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Status</span>
+                      <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.success }}>Active</span>
+                    </div>
                   </div>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#4ae176' }}>check_circle</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#C08532' }}>policy</span>
-              <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Policies</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {[
-                { id: 'POL_091_ENFORCE_GEO', desc: 'Transaction origin must match US-East.' },
-                { id: 'POL_212_MANDATE_ID', desc: 'Include mandate hash in metadata.' },
-              ].map(p => (
-                <div key={p.id} style={{ padding: '10px 12px', backgroundColor: '#080808', borderLeft: '2px solid #C08532', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <span style={{ display: 'block', fontFamily: 'Space Grotesk', fontSize: '10px', color: '#fff', fontWeight: 500 }}>{p.id}</span>
-                  <span style={{ display: 'block', fontFamily: 'Inter', fontSize: '11px', color: '#737373', marginTop: '3px' }}>{p.desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Events + Security */}
-      <div style={{ display: 'grid', gridTemplateColumns: '4fr 8fr', gap: '12px' }}>
-        <div style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.1)', padding: '16px' }}>
-          <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '12px' }}>Recent Events</span>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {EVENTS.map((e, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', padding: '8px 0', borderBottom: i < EVENTS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', fontFamily: 'Space Grotesk', fontSize: '11px' }}>
-                <span style={{ color: '#555', minWidth: '55px' }}>{e.time}</span>
-                <span style={{ color: e.color, fontWeight: 500, minWidth: '100px' }}>{e.event}</span>
-                <span style={{ color: '#737373' }}>{e.detail}</span>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ background: 'linear-gradient(135deg, #111111 0%, #080808 100%)', border: '1px solid rgba(255,255,255,0.1)', padding: '16px', display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <div style={{ width: '120px', height: '120px', position: 'relative', flexShrink: 0 }}>
-            <svg width="120" height="120" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#222" strokeWidth="1" />
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#C08532" strokeDasharray="85, 100" strokeWidth="1.5" />
-            </svg>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontFamily: 'Inter', fontSize: '22px', fontWeight: 600, color: '#fff', lineHeight: 1 }}>85%</span>
-              <span style={{ fontFamily: 'Space Grotesk', fontSize: '9px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Security Score</span>
             </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ fontFamily: 'Space Grotesk', fontSize: '11px', fontWeight: 600, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Security Overview</span>
-            <p style={{ fontFamily: 'Inter', fontSize: '12px', color: '#737373', maxWidth: '340px', lineHeight: 1.6 }}>This agent operates under a high-security mandate with strict merchant whitelisting enforced at the kernel level.</p>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {['Encrypted', 'Isolated', 'Hardened'].map(tag => (
-                <span key={tag} style={{ padding: '3px 8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'Space Grotesk', fontSize: '10px', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{tag}</span>
-              ))}
+          )}
+
+          {statusMessage && (
+            <div style={{ backgroundColor: tokens.colors.successBg, border: `1px solid ${tokens.colors.successBorder}`, color: tokens.colors.success, padding: `10px ${tokens.spacing.md}`, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, letterSpacing: tokens.typography.letterSpacing.wide }}>
+              {statusMessage}
             </div>
-          </div>
-        </div>
-      </div>
-      {statusMessage && (
-        <div style={{ backgroundColor: 'rgba(74,225,118,0.08)', border: '1px solid rgba(74,225,118,0.25)', color: '#4ae176', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
-          {statusMessage}
-        </div>
+          )}
+        </>
       )}
+
       {errorMessage && (
-        <div style={{ backgroundColor: 'rgba(255,180,171,0.08)', border: '1px solid rgba(255,180,171,0.25)', color: '#ffb4ab', padding: '10px 12px', fontFamily: 'Space Grotesk', fontSize: '11px', letterSpacing: '0.04em' }}>
+        <div style={{ backgroundColor: tokens.colors.errorBg, border: `1px solid ${tokens.colors.errorBorder}`, color: tokens.colors.error, padding: `10px ${tokens.spacing.md}`, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, letterSpacing: tokens.typography.letterSpacing.wide }}>
           {errorMessage}
         </div>
       )}

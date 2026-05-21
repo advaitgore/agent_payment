@@ -64,8 +64,10 @@ export async function rotateAgentKey(agentId: string): Promise<AgentRead> {
 }
 
 export async function listAgents(orgId?: string): Promise<AgentRead[]> {
-  if (!orgId) return [];
-  return apiCall<AgentRead[]>(`/agents?org_id=${orgId}`);
+  if (orgId) {
+    return apiCall<AgentRead[]>(`/agents?org_id=${orgId}`);
+  }
+  return apiCall<AgentRead[]>('/agents');
 }
 
 export async function createMandate(payload: MandateCreate): Promise<MandateRead> {
