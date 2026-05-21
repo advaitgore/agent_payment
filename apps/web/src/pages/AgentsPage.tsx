@@ -270,8 +270,8 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
                   {selectedMandates.map((mandate) => (
                     <div key={mandate.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', paddingBottom: tokens.spacing.lg }}>
                       <div>
-                        <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Monthly Budget</span>
-                        <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${mandate.monthly_limit?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || 'N/A'}</span>
+                        <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Max Per Transaction</span>
+                        <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${mandate.max_per_transaction.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                       </div>
                       <div>
                         <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Status</span>
