@@ -26,8 +26,7 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
         setIsLoading(true)
         const fetchedAgents = await listAgents()
         setAgents(fetchedAgents)
-        
-        // Set first agent as selected, or try to restore previously selected
+
         const storedId = getStoredAgentId()
         if (storedId && fetchedAgents.some(a => a.id === storedId)) {
           setSelectedAgentId(storedId)
@@ -35,22 +34,17 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
           setSelectedAgentId(fetchedAgents[0].id)
         }
 
-        // Load spending summaries for all agents
         const summaries: Record<string, SpendingSummary> = {}
         const mandatesList: Record<string, MandateRead[]> = {}
         for (const agent of fetchedAgents) {
           try {
             const summary = await getSpendingSummary(agent.id)
             summaries[agent.id] = summary
-          } catch (_err) {
-            // If spending summary fails, just skip it
-          }
+          } catch (_err) {}
           try {
             const agentMandates = await listMandates(agent.id)
             mandatesList[agent.id] = agentMandates
-          } catch (_err) {
-            // If mandates fail, just skip it
-          }
+          } catch (_err) {}
         }
         setSpendingSummaries(summaries)
         setMandates(mandatesList)
@@ -60,7 +54,6 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
         setIsLoading(false)
       }
     }
-
     loadAgents()
   }, [])
 
@@ -106,15 +99,11 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
         try {
           const summary = await getSpendingSummary(agent.id)
           summaries[agent.id] = summary
-        } catch (_err) {
-          // If spending summary fails, just skip it
-        }
+        } catch (_err) {}
         try {
           const agentMandates = await listMandates(agent.id)
           mandatesList[agent.id] = agentMandates
-        } catch (_err) {
-          // If mandates fail, just skip it
-        }
+        } catch (_err) {}
       }
       setSpendingSummaries(summaries)
       setMandates(mandatesList)
@@ -206,7 +195,7 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
 
       {/* Main content */}
       {selectedAgent && (
-        <>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacing.md }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: tokens.spacing.md }}>
             {/* API Key Management */}
             <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, padding: tokens.spacing.lg, display: 'flex', flexDirection: 'column', gap: tokens.spacing.lg }}>
@@ -247,59 +236,60 @@ export default function AgentsPage({ onNavigate: _onNavigate }: Props) {
             </div>
 
             {/* Spending Summary */}
-          {selectedSummary && (
-            <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, overflow: 'hidden' }}>
-              <div style={{ padding: `10px ${tokens.spacing.lg}`, borderBottom: `1px solid ${tokens.colors.border}`, backgroundColor: 'rgba(26,26,26,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>Spending Summary</span>
-              </div>
-              <div style={{ padding: tokens.spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '32px' }}>
-                <div>
-                  <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Total Spent</span>
-                  <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${selectedSummary.total_spent.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            {selectedSummary && (
+              <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, overflow: 'hidden' }}>
+                <div style={{ padding: `10px ${tokens.spacing.lg}`, borderBottom: `1px solid ${tokens.colors.border}`, backgroundColor: 'rgba(26,26,26,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>Spending Summary</span>
                 </div>
-                <div>
-                  <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Requests</span>
-                  <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>{selectedSummary.total_requests}</span>
-                </div>
-                <div>
-                  <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Approval Rate</span>
-                  <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.success }}>
-                    {selectedSummary.total_requests > 0 ? ((selectedSummary.approved / selectedSummary.total_requests) * 100).toFixed(1) : '0.0'}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Mandates */}
-          {selectedMandates && selectedMandates.length > 0 && (
-            <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, overflow: 'hidden' }}>
-              <div style={{ padding: `10px ${tokens.spacing.lg}`, borderBottom: `1px solid ${tokens.colors.border}`, backgroundColor: 'rgba(26,26,26,0.5)' }}>
-                <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>Spending Limits</span>
-              </div>
-              <div style={{ padding: tokens.spacing.lg }}>
-                {selectedMandates.map((mandate) => (
-                  <div key={mandate.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', paddingBottom: tokens.spacing.lg }}>
-                    <div>
-                      <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Monthly Budget</span>
-                      <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${mandate.monthly_limit?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Status</span>
-                      <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.success }}>Active</span>
-                    </div>
+                <div style={{ padding: tokens.spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '32px' }}>
+                  <div>
+                    <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Total Spent</span>
+                    <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${selectedSummary.total_spent.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                   </div>
-                ))}
+                  <div>
+                    <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Requests</span>
+                    <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>{selectedSummary.total_requests}</span>
+                  </div>
+                  <div>
+                    <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Approval Rate</span>
+                    <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.success }}>
+                      {selectedSummary.total_requests > 0 ? ((selectedSummary.approved / selectedSummary.total_requests) * 100).toFixed(1) : '0.0'}%
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Mandates */}
+            {selectedMandates && selectedMandates.length > 0 && (
+              <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, overflow: 'hidden' }}>
+                <div style={{ padding: `10px ${tokens.spacing.lg}`, borderBottom: `1px solid ${tokens.colors.border}`, backgroundColor: 'rgba(26,26,26,0.5)' }}>
+                  <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>Spending Limits</span>
+                </div>
+                <div style={{ padding: tokens.spacing.lg }}>
+                  {selectedMandates.map((mandate) => (
+                    <div key={mandate.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', paddingBottom: tokens.spacing.lg }}>
+                      <div>
+                        <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Monthly Budget</span>
+                        <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary }}>${mandate.monthly_limit?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span style={{ display: 'block', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wide }}>Status</span>
+                        <span style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: '22px', fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.success }}>Active</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           {statusMessage && (
             <div style={{ backgroundColor: tokens.colors.successBg, border: `1px solid ${tokens.colors.successBorder}`, color: tokens.colors.success, padding: `10px ${tokens.spacing.md}`, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, letterSpacing: tokens.typography.letterSpacing.wide }}>
               {statusMessage}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {errorMessage && (
