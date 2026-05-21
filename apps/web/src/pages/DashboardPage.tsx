@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Page } from '../App'
 import { listAgents, listAuditEvents, getSpendingSummary } from '../lib/api'
-import type { AgentRead, AuditEventListItem, SpendingSummary } from '../types/api'
+import type { AuditEventListItem } from '../types/api'
 import { tokens } from '../tokens'
 
 interface Props {
@@ -24,29 +24,22 @@ export default function DashboardPage({ onNavigate }: Props) {
         setIsLoading(true)
         setLoadError(null)
 
-        // Get organization ID from first agent (for now, we fetch all agents)
         const agents = await listAgents()
         setAgentCount(agents.length)
 
-        // Get recent audit events
         const auditResp = await listAuditEvents({ limit: 5 })
         setRecentEvents(auditResp.items)
 
-        // Get spending summary (use first agent if available)
         if (agents.length > 0) {
           try {
             const summary = await getSpendingSummary(agents[0].id)
             const spent = summary.total_spent
             setTotalSpend(`$${spent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
             setTotalRequests(summary.total_requests)
-            
-            // Calculate approval rate
             const total = summary.approved + summary.denied + summary.needs_review
             const rate = total > 0 ? ((summary.approved / total) * 100).toFixed(1) : '0.0'
             setApprovalRate(`${rate}%`)
-          } catch (_err) {
-            // If no spending summary available, use defaults
-          }
+          } catch (_err) {}
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Failed to load dashboard data'

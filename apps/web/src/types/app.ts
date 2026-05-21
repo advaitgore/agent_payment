@@ -1,4 +1,4 @@
-export type AppPage = 'dashboard' | 'setup' | 'simulator' | 'agents' | 'audit' | 'settings';
+export type AppPage = 'dashboard' | 'setup' | 'agents' | 'audit' | 'settings';
 
 export interface AppContext {
   currentOrgId: string | null;
