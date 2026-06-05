@@ -1,21 +1,77 @@
 name: AgentPay
-description: Give your AI agent a budget with per-transaction limits, approval thresholds, and merchant allowlists. AgentPay returns approved/denied decisions with a full audit trail.
-version: "0.1.0"
+description: |
+  Give your AI agent a spending mandate — per-transaction limits, approval thresholds, and merchant allowlists.
+  AgentPay returns approved/denied decisions with a full audit trail in <100ms.
+
+  No dashboard required. Run `create_account` → `create_agent` → `create_mandate` directly from Claude
+  to get set up in under 2 minutes. Then authorize purchases, check spending, and rotate keys — all from MCP.
+version: "0.2.0"
 configSchema:
   type: object
   properties:
     AGENTPAY_API_KEY:
       type: string
-      description: Agent API key for authenticating MCP calls.
+      description: Agent API key for runtime MCP tools. Leave blank to use setup tools first.
     AGENTPAY_BASE_URL:
       type: string
       description: Base URL for the AgentPay API.
-      default: http://localhost:8000
-  required:
-    - AGENTPAY_API_KEY
+      default: https://agentpayment-production.up.railway.app
+  required: []
 tools:
+  # --- Setup tools (no API key required) ---
+  - name: create_account
+    description: Create a new AgentPay user account and organization. Returns email, generated password, and org_id. Run this first if you don't have an account.
+    parameters:
+      email:
+        type: string
+        description: Email address for the new account.
+      org_name:
+        type: string
+        description: Name for your organization.
+
+  - name: create_agent
+    description: Log in and create an agent under your org. Returns agent_id and api_key. Run after create_account.
+    parameters:
+      email:
+        type: string
+        description: Account email.
+      password:
+        type: string
+        description: Account password (returned by create_account).
+      org_id:
+        type: string
+        description: Organization ID (returned by create_account).
+      agent_name:
+        type: string
+        description: Name for the agent.
+      webhook_url:
+        type: string
+        description: Optional webhook URL for decision callbacks.
+
+  - name: create_mandate
+    description: Set spending rules for an agent using its API key. Run after create_agent.
+    parameters:
+      agent_api_key:
+        type: string
+        description: API key returned by create_agent.
+      max_per_transaction:
+        type: number
+        description: Maximum USD allowed per transaction.
+      approval_threshold:
+        type: number
+        description: USD amount above which purchases are auto-denied without explicit approval.
+      allowed_merchants:
+        type: array
+        items:
+          type: string
+        description: List of allowed merchant names.
+      callback_url:
+        type: string
+        description: Optional callback URL for decision notifications.
+
+  # --- Runtime tools (requires AGENTPAY_API_KEY in env) ---
   - name: authorize_purchase
-    description: Authorize a purchase against the agent mandate.
+    description: Authorize a purchase against the agent's active mandate. Returns approved/denied with reason.
     parameters:
       merchant:
         type: string
@@ -25,10 +81,10 @@ tools:
         description: Purchase amount in USD.
       category:
         type: string
-        description: Merchant category.
+        description: Merchant category (e.g. infrastructure, saas, travel).
       reason:
         type: string
-        description: Why the agent wants the purchase.
+        description: Why the agent wants to make this purchase.
       merchant_address:
         type: string
         description: Merchant address or identifier (optional).
@@ -38,12 +94,15 @@ tools:
       chain:
         type: string
         description: Payment chain or network (optional).
+
   - name: get_mandate
-    description: Fetch the current mandate for an agent.
+    description: Fetch the current spending mandate for the agent.
+
   - name: get_spending_summary
-    description: Fetch spending totals and counts for an agent.
+    description: Return total spend and transaction count for the agent.
+
   - name: get_audit_log
-    description: Fetch audit events for the current agent.
+    description: List audit events for the agent with optional filters.
     parameters:
       action:
         type: string
@@ -53,25 +112,26 @@ tools:
         description: Filter by decision status (optional).
       start:
         type: string
-        description: ISO timestamp for the start of the range (optional).
+        description: ISO timestamp for range start (optional).
       end:
         type: string
-        description: ISO timestamp for the end of the range (optional).
+        description: ISO timestamp for range end (optional).
       limit:
         type: number
-        description: Maximum number of events to return (optional).
+        description: Max events to return (optional).
       offset:
         type: number
-        description: Offset for pagination (optional).
+        description: Pagination offset (optional).
+
   - name: update_mandate
-    description: Update the current agent's mandate limits or allowlist.
+    description: Update the agent's mandate limits or merchant allowlist.
     parameters:
       max_per_transaction:
         type: number
-        description: Updated max per transaction (optional).
+        description: New max per transaction (optional).
       approval_threshold:
         type: number
-        description: Updated approval threshold (optional).
+        description: New approval threshold (optional).
       allowed_merchants:
         type: array
         items:
@@ -80,5 +140,6 @@ tools:
       callback_url:
         type: string
         description: Updated callback URL (optional).
+
   - name: rotate_agent_key
-    description: Rotate the current agent API key.
+    description: Rotate the current agent API key. Returns the new key.
