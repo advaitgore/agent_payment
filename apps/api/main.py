@@ -10,6 +10,7 @@ from apps.api.routes.mandates import router as mandates_router
 from apps.api.routes.orgs import router as orgs_router
 from apps.api.routes.requests import router as requests_router
 from apps.api.routes.x402 import router as x402_router
+from apps.api.mcp_server import mcp
 
 
 settings = get_settings()
@@ -32,6 +33,9 @@ app.include_router(audit_events_router)
 app.include_router(mandates_router)
 app.include_router(requests_router)
 app.include_router(x402_router)
+
+# Mount MCP server — accessible at /mcp for Smithery and MCP clients
+app.mount("/mcp", mcp.get_asgi_app())
 
 
 @app.on_event("startup")
