@@ -79,6 +79,14 @@ class MandateUpdate(BaseModel):
 class MandateRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+
+
+class MandateCreateSelf(BaseModel):
+    max_per_transaction: Decimal
+    approval_threshold: Decimal
+    allowed_merchants: list[str]
+    callback_url: str | None = None
+
     id: uuid.UUID
     agent_id: uuid.UUID
     max_per_transaction: Decimal

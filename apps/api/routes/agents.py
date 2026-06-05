@@ -10,7 +10,15 @@ from sqlalchemy.orm import Session
 from apps.api.auth import get_agent_from_api_key, get_current_user
 from apps.api.db.models import Agent, AuditEvent, DecisionStatus, Mandate, Organization, PurchaseRequest, RequestStatus, User, UserOrganization
 from apps.api.db.session import get_db
-from apps.api.models.schemas import AgentCreate, AgentRead, AuditEventListItem, AuditEventListResponse, MandateRead, MandateUpdate
+from apps.api.models.schemas import (
+    AgentCreate,
+    AgentRead,
+    AuditEventListItem,
+    AuditEventListResponse,
+    MandateRead,
+    MandateUpdate,
+    MandateCreateSelf,
+)
 from apps.api.services.audit_service import list_audit_events
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -41,6 +49,43 @@ def get_current_agent_mandate(
     if not mandate:
         raise HTTPException(status_code=404, detail="Mandate not found for agent")
     return MandateRead.model_validate(mandate)
+
+
+@router.post(
+    "/me/mandate",
+    response_model=MandateRead,
+    summary="Create current agent mandate",
+    description="Create a mandate for the agent identified by x-api-key. Returns 409 if one already exists.",
+)
+def create_current_agent_mandate(
+    payload: MandateCreateSelf,
+    agent: Agent = Depends(get_agent_from_api_key),
+    db: Session = Depends(get_db),
+) -> MandateRead:
+    existing = db.query(Mandate).filter(Mandate.agent_id == agent.id).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Mandate already exists for agent")
+
+    new_mandate = Mandate(
+        agent_id=agent.id,
+        max_per_transaction=payload.max_per_transaction,
+        approval_threshold=payload.approval_threshold,
+        allowed_merchants=payload.allowed_merchants,
+        callback_url=payload.callback_url,
+    )
+    db.add(new_mandate)
+    db.commit()
+    db.refresh(new_mandate)
+
+    audit_event = AuditEvent(
+        request_id=None,
+        action="mandate_created",
+        details={"agent_id": str(agent.id), "mandate_id": str(new_mandate.id)},
+    )
+    db.add(audit_event)
+    db.commit()
+
+    return MandateRead.model_validate(new_mandate)
 
 
 @router.patch(

@@ -1,5 +1,6 @@
 import os
 from typing import Any
+import secrets
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -33,7 +34,16 @@ async def _patch(client: httpx.AsyncClient, path: str, payload: dict[str, Any]) 
     response.raise_for_status()
     return response.json()
 
+async def _post_noauth(client: httpx.AsyncClient, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    response = await client.post(f"{BASE_URL}{path}", json=payload)
+    response.raise_for_status()
+    return response.json()
 
+async def _post_with_key(client: httpx.AsyncClient, path: str, payload: dict[str, Any], api_key: str) -> dict[str, Any]:
+    headers = {"x-api-key": api_key}
+    response = await client.post(f"{BASE_URL}{path}", json=payload, headers=headers)
+    response.raise_for_status()
+    return response.json()
 @mcp.tool()
 async def authorize_purchase(
     merchant: str,
@@ -120,6 +130,39 @@ async def rotate_agent_key() -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=10.0) as client:
         return await _post(client, "/agents/me/rotate-key", {})
 
+@mcp.tool()
+async def create_account(email: str, org_name: str) -> dict[str, Any]:
+    """Create a user account and an organization. Returns email, password, org_id."""
+    password = secrets.token_urlsafe(16)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        # signup will set a session cookie on the client
+        await _post_noauth(client, "/auth/signup", {"email": email, "password": password})
+        org_resp = await client.post(f"{BASE_URL}/orgs", json={"name": org_name})
+        org_resp.raise_for_status()
+        org_json = org_resp.json()
+    return {"email": email, "password": password, "org_id": org_json.get("id")}
 
+@mcp.tool()
+async def create_agent(email: str, password: str, org_id: str, agent_name: str, webhook_url: str | None = None) -> dict[str, Any]:
+    """Log in with email/password and create an agent under org_id. Returns agent id and api_key."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        await _post_noauth(client, "/auth/login", {"email": email, "password": password})
+        payload = {"org_id": org_id, "name": agent_name, "webhook_url": webhook_url}
+        agent_resp = await client.post(f"{BASE_URL}/agents", json=payload)
+        agent_resp.raise_for_status()
+        agent_json = agent_resp.json()
+    return {"agent_id": agent_json.get("id"), "api_key": agent_json.get("api_key")}
+
+@mcp.tool()
+async def create_mandate(agent_api_key: str, max_per_transaction: float, approval_threshold: float, allowed_merchants: list[str], callback_url: str | None = None) -> dict[str, Any]:
+    """Create a mandate using the provided agent API key by calling POST /agents/me/mandate."""
+    payload = {
+        "max_per_transaction": max_per_transaction,
+        "approval_threshold": approval_threshold,
+        "allowed_merchants": allowed_merchants,
+        "callback_url": callback_url,
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        return await _post_with_key(client, "/agents/me/mandate", payload, agent_api_key)
 if __name__ == "__main__":
     mcp.run()
