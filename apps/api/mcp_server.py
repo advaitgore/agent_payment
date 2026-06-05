@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP
 BASE_URL = os.getenv("AGENTPAY_BASE_URL", "http://localhost:8000").rstrip("/")
 API_KEY = os.getenv("AGENTPAY_API_KEY")
 
-mcp = FastMCP("AgentPay")
+mcp = FastMCP("AgentPay", stateless_http=True)
 
 
 def _auth_headers() -> dict[str, str]:
@@ -44,6 +44,7 @@ async def _post_with_key(client: httpx.AsyncClient, path: str, payload: dict[str
     response = await client.post(f"{BASE_URL}{path}", json=payload, headers=headers)
     response.raise_for_status()
     return response.json()
+
 @mcp.tool()
 async def authorize_purchase(
     merchant: str,
@@ -164,5 +165,6 @@ async def create_mandate(agent_api_key: str, max_per_transaction: float, approva
     }
     async with httpx.AsyncClient(timeout=10.0) as client:
         return await _post_with_key(client, "/agents/me/mandate", payload, agent_api_key)
+
 if __name__ == "__main__":
     mcp.run()
