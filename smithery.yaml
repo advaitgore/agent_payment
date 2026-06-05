@@ -6,17 +6,31 @@ description: |
   No dashboard required. Run `create_account` → `create_agent` → `create_mandate` directly from Claude
   to get set up in under 2 minutes. Then authorize purchases, check spending, and rotate keys — all from MCP.
 version: "0.2.0"
-configSchema:
-  type: object
-  properties:
-    AGENTPAY_API_KEY:
-      type: string
-      description: Agent API key for runtime MCP tools. Leave blank to use setup tools first.
-    AGENTPAY_BASE_URL:
-      type: string
-      description: Base URL for the AgentPay API.
-      default: https://agentpayment-production.up.railway.app
-  required: []
+startCommand:
+  type: http
+  configSchema:
+    type: object
+    properties:
+      AGENTPAY_API_KEY:
+        type: string
+        description: Agent API key for runtime MCP tools. Leave blank to use setup tools first.
+      AGENTPAY_BASE_URL:
+        type: string
+        description: Base URL for the AgentPay API.
+        default: https://agentpayment-production.up.railway.app
+    required: []
+  exampleConfig:
+    AGENTPAY_API_KEY: "agp_xxxx_your_key_here"
+    AGENTPAY_BASE_URL: "https://agentpayment-production.up.railway.app"
+  commandFunction: |-
+    (config) => ({
+      command: "python",
+      args: ["-m", "apps.api.mcp_server"],
+      env: {
+        AGENTPAY_BASE_URL: config.AGENTPAY_BASE_URL || "https://agentpayment-production.up.railway.app",
+        ...(config.AGENTPAY_API_KEY ? { AGENTPAY_API_KEY: config.AGENTPAY_API_KEY } : {})
+      }
+    })
 tools:
   # --- Setup tools (no API key required) ---
   - name: create_account
