@@ -35,7 +35,7 @@ app.include_router(requests_router)
 app.include_router(x402_router)
 
 # Mount MCP server — accessible at /mcp for Smithery and MCP clients
-app.mount("/mcp", mcp.http_app(path="/"))
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 @app.on_event("startup")
