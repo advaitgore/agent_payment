@@ -103,11 +103,15 @@ python -m apps.api.mcp_server
 ```
 
 Set `AGENTPAY_BASE_URL` to point tools at your deployed API (default: `http://localhost:8000`).
+Set `AGENTPAY_API_KEY` to the agent API key used for MCP calls.
 
 **Available tools:**
 - `authorize_purchase` — evaluate a spend request against the active mandate
 - `get_mandate` — fetch the current mandate for an agent
 - `get_spending_summary` — return total spend and transaction count
+- `get_audit_log` — list audit events for the current agent
+- `update_mandate` — update mandate limits or allowlist for the current agent
+- `rotate_agent_key` — rotate the current agent API key
 
 **Claude / Cursor integration** — add to your `mcp_servers` config:
 ```json
@@ -115,7 +119,10 @@ Set `AGENTPAY_BASE_URL` to point tools at your deployed API (default: `http://lo
 	"agentpay": {
 		"command": "python",
 		"args": ["-m", "apps.api.mcp_server"],
-		"env": { "AGENTPAY_BASE_URL": "https://your-deployed-api-url" }
+		"env": {
+			"AGENTPAY_API_KEY": "your_agent_api_key",
+			"AGENTPAY_BASE_URL": "https://your-deployed-api-url"
+		}
 	}
 }
 ```
@@ -140,5 +147,6 @@ docker run -p 8000:8000 --env-file .env agentpay
 | DATABASE_URL | postgresql+psycopg2://postgres:postgres@localhost:5432/agent_payment | PostgreSQL connection string |
 | ENVIRONMENT | development | Runtime environment name |
 | DEBUG | false | Enable FastAPI debug mode |
+| AGENTPAY_API_KEY | - | Agent API key for MCP server authentication |
 | AGENTPAY_BASE_URL | http://localhost:8000 | Base URL used by the MCP server |
 | VITE_API_URL | http://localhost:8000 | Base URL used by the frontend dashboard |

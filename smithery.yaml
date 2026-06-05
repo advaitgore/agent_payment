@@ -1,13 +1,22 @@
 name: AgentPay
-description: Authorization layer for AI agent spending with mandate-based decisions.
+description: Give your AI agent a budget with per-transaction limits, approval thresholds, and merchant allowlists. AgentPay returns approved/denied decisions with a full audit trail.
 version: "0.1.0"
+configSchema:
+  type: object
+  properties:
+    AGENTPAY_API_KEY:
+      type: string
+      description: Agent API key for authenticating MCP calls.
+    AGENTPAY_BASE_URL:
+      type: string
+      description: Base URL for the AgentPay API.
+      default: http://localhost:8000
+  required:
+    - AGENTPAY_API_KEY
 tools:
   - name: authorize_purchase
     description: Authorize a purchase against the agent mandate.
     parameters:
-      api_key:
-        type: string
-        description: Agent API key.
       merchant:
         type: string
         description: Merchant name.
@@ -20,15 +29,56 @@ tools:
       reason:
         type: string
         description: Why the agent wants the purchase.
+      merchant_address:
+        type: string
+        description: Merchant address or identifier (optional).
+      token:
+        type: string
+        description: Payment token (optional).
+      chain:
+        type: string
+        description: Payment chain or network (optional).
   - name: get_mandate
     description: Fetch the current mandate for an agent.
-    parameters:
-      api_key:
-        type: string
-        description: Agent API key.
   - name: get_spending_summary
     description: Fetch spending totals and counts for an agent.
+  - name: get_audit_log
+    description: Fetch audit events for the current agent.
     parameters:
-      api_key:
+      action:
         type: string
-        description: Agent API key.
+        description: Filter by audit action (optional).
+      status:
+        type: string
+        description: Filter by decision status (optional).
+      start:
+        type: string
+        description: ISO timestamp for the start of the range (optional).
+      end:
+        type: string
+        description: ISO timestamp for the end of the range (optional).
+      limit:
+        type: number
+        description: Maximum number of events to return (optional).
+      offset:
+        type: number
+        description: Offset for pagination (optional).
+  - name: update_mandate
+    description: Update the current agent's mandate limits or allowlist.
+    parameters:
+      max_per_transaction:
+        type: number
+        description: Updated max per transaction (optional).
+      approval_threshold:
+        type: number
+        description: Updated approval threshold (optional).
+      allowed_merchants:
+        type: array
+        items:
+          type: string
+        description: Updated merchant allowlist (optional).
+      callback_url:
+        type: string
+        description: Updated callback URL (optional).
+  - name: rotate_agent_key
+    description: Rotate the current agent API key.

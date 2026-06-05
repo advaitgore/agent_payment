@@ -37,35 +37,36 @@ class AgentPayClient:
 
         return response.json()
 
-    def _get_agent(self) -> dict:
-        return self._request("get", "/agents/me")
-
-    def authorize(self, merchant: str, amount: float, category: str, reason: str) -> AuthorizationResult:
-        agent = self._get_agent()
-        request_payload = {
-            "agent_id": agent["id"],
-            "merchant": merchant,
-            "amount": amount,
+    def authorize(
+        self,
+        merchant: str,
+        amount: float,
+        category: str,
+        reason: str,
+        merchant_address: str = "unknown",
+        token: str = "unknown",
+        chain: str = "unknown",
+    ) -> AuthorizationResult:
+        payload = {
+            "merchant_address": merchant_address,
+            "merchant_name": merchant,
+            "amount_usd": amount,
+            "token": token,
+            "chain": chain,
             "category": category,
             "reason": reason,
         }
-        created = self._request("post", "/requests", json=request_payload)
-        evaluation = self._request("post", f"/requests/{created['id']}/evaluate", json={})
+        evaluation = self._request("post", "/authorize-x402", json=payload)
 
         return AuthorizationResult(
-            approved=evaluation["decision_status"] == "approved",
-            decision=evaluation["decision_status"],
+            approved=evaluation["decision"] == "approved",
+            decision=evaluation["decision"],
             reason=evaluation["reason"],
             request_id=str(evaluation["request_id"]),
         )
 
     def get_mandate(self) -> dict:
-        agent = self._get_agent()
-        mandates = self._request("get", "/mandates", params={"agent_id": agent["id"]})
-        if not mandates:
-            raise RuntimeError(f"No mandate found for agent_id={agent['id']}")
-        return mandates[0]
+        return self._request("get", "/agents/me/mandate")
 
     def get_spending(self) -> dict:
-        agent = self._get_agent()
-        return self._request("get", f"/agents/{agent['id']}/spending")
+        return self._request("get", "/agents/me/spending")

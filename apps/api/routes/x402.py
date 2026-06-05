@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from apps.api.auth import get_agent_from_api_key
 from apps.api.db.models import Agent, AuditEvent, Decision, DecisionStatus, PurchaseRequest, RequestStatus
 from apps.api.db.session import get_db
 from apps.api.services.policy_service import evaluate_request
@@ -14,7 +15,6 @@ router = APIRouter(prefix="/authorize-x402", tags=["x402"])
 
 
 class X402AuthRequest(BaseModel):
-    agent_id: uuid.UUID
     merchant_address: str
     merchant_name: str
     amount_usd: Decimal
@@ -40,12 +40,9 @@ class X402AuthResponse(BaseModel):
 def authorize_x402(
     payload: X402AuthRequest,
     background_tasks: BackgroundTasks,
+    agent: Agent = Depends(get_agent_from_api_key),
     db: Session = Depends(get_db),
 ) -> X402AuthResponse:
-    agent = db.query(Agent).filter(Agent.id == payload.agent_id).first()
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
-
     mandate = agent.mandate
     if not mandate:
         raise HTTPException(status_code=404, detail="Mandate not found for agent")
