@@ -84,13 +84,22 @@ def clear_auth_cookie(response: Response) -> None:
 
 
 def get_current_user(
+    authorization: str | None = Header(default=None, alias="Authorization"),
     session_token: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME),
     db: Session = Depends(get_db),
 ) -> User:
-    if not session_token:
+    # Prefer Bearer token from Authorization header, fall back to cookie
+    token: str | None = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.removeprefix("Bearer ").strip()
+    elif session_token:
+        token = session_token
+
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
+
     try:
-        payload = jwt.decode(session_token, settings.auth_secret_key, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.auth_secret_key, algorithms=["HS256"])
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid session token")
