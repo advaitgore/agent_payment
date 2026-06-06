@@ -27,6 +27,7 @@ startCommand:
       command: "python",
       args: ["-m", "apps.api.mcp_server"],
       env: {
+        PORT: "8080",
         AGENTPAY_BASE_URL: config.AGENTPAY_BASE_URL || "https://agentpayment-production.up.railway.app",
         ...(config.AGENTPAY_API_KEY ? { AGENTPAY_API_KEY: config.AGENTPAY_API_KEY } : {})
       }

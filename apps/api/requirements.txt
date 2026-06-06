@@ -4,5 +4,5 @@ sqlalchemy
 psycopg2-binary
 pydantic-settings
 httpx
-mcp
+mcp[cli]
 python-jose[cryptography]
