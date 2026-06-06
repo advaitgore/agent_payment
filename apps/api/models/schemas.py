@@ -32,6 +32,7 @@ class UserRead(BaseModel):
 
 class AuthSessionResponse(BaseModel):
     user: UserRead
+    access_token: str | None = None
 
 
 class OrganizationRead(BaseModel):
