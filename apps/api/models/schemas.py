@@ -70,6 +70,13 @@ class MandateCreate(BaseModel):
     callback_url: str | None = None
 
 
+class MandateCreateSelf(BaseModel):
+    max_per_transaction: Decimal
+    approval_threshold: Decimal
+    allowed_merchants: list[str]
+    callback_url: str | None = None
+
+
 class MandateUpdate(BaseModel):
     max_per_transaction: Decimal | None = None
     approval_threshold: Decimal | None = None
@@ -80,14 +87,6 @@ class MandateUpdate(BaseModel):
 class MandateRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-
-
-class MandateCreateSelf(BaseModel):
-    max_per_transaction: Decimal
-    approval_threshold: Decimal
-    allowed_merchants: list[str]
-    callback_url: str | None = None
-
     id: uuid.UUID
     agent_id: uuid.UUID
     max_per_transaction: Decimal
@@ -95,7 +94,7 @@ class MandateCreateSelf(BaseModel):
     allowed_merchants: list[str]
     callback_url: str | None
     created_at: datetime
-    updated_at: datetime | None = None
+    updated_at: datetime
 
 
 class PurchaseRequestCreate(BaseModel):
