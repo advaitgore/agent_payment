@@ -16,7 +16,7 @@ from apps.api.mcp_server import mcp
 
 settings = get_settings()
 
-app = FastAPI(title=settings.app_name, debug=settings.debug)
+app = FastAPI(title=settings.app_name, debug=settings.debug, redirect_slashes=False)
 
 # CORS middleware with environment-driven allowed origins
 app.add_middleware(
