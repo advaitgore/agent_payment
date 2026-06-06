@@ -37,7 +37,7 @@ def signup(
 
     token = create_access_token(user)
     set_auth_cookie(response, token)
-    return AuthSessionResponse(user=UserRead.model_validate(user))
+    return AuthSessionResponse(user=UserRead.model_validate(user), access_token=token)
 
 
 @router.post(
@@ -58,7 +58,7 @@ def login(
 
     token = create_access_token(user)
     set_auth_cookie(response, token)
-    return AuthSessionResponse(user=UserRead.model_validate(user))
+    return AuthSessionResponse(user=UserRead.model_validate(user), access_token=token)
 
 
 @router.get(
