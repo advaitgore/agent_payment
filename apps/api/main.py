@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
-from typing import Callable
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.routing import Route
+from starlette.applications import Starlette
 
 from apps.api.config import get_settings
 from apps.api.db.init_db import init_db
@@ -35,7 +36,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow all hosts (Railway + Smithery proxies send arbitrary Host headers)
+# Allow all hosts
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # CORS middleware
@@ -56,22 +57,48 @@ app.include_router(requests_router)
 app.include_router(x402_router)
 
 
-def trusted_mcp_app(inner_app: Callable) -> Callable:
-    """Wrap the FastMCP ASGI app, overriding the HTTP_HOST scope value to
-    'localhost' so FastMCP's internal TrustedHostMiddleware always passes."""
-    async def wrapper(scope, receive, send):
-        if scope.get("type") == "http":
-            headers = [
-                (b"host", b"localhost") if name.lower() == b"host" else (name, value)
-                for name, value in scope.get("headers", [])
-            ]
-            scope = {**scope, "headers": headers, "server": ("localhost", 80)}
-        await inner_app(scope, receive, send)
-    return wrapper
+# Directly expose the MCP streamable-HTTP handler without going through
+# FastMCP's Starlette app (which wraps TrustedHostMiddleware around it).
+# We grab the underlying ASGI handler from the session manager directly.
+@app.api_route("/mcp/mcp", methods=["GET", "POST", "DELETE"])
+async def mcp_handler(request: Request):
+    """Proxy all MCP traffic to the session manager's handle_request."""
+    handler = mcp.session_manager.handle_request
+    # Build a minimal scope that looks like the request came from localhost
+    scope = dict(request.scope)
+    headers = [
+        (b"host", b"localhost") if k.lower() == b"host" else (k, v)
+        for k, v in scope.get("headers", [])
+    ]
+    scope["headers"] = headers
+    scope["server"] = ("localhost", 80)
 
+    body_chunks = []
+    async def receive():
+        body = await request.body()
+        return {"type": "http.request", "body": body, "more_body": False}
 
-# Mount MCP ASGI app at /mcp with host spoofing wrapper
-app.mount("/mcp", trusted_mcp_app(mcp.streamable_http_app()))
+    response_started = {}
+    response_body = []
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            response_started["status"] = message["status"]
+            response_started["headers"] = message.get("headers", [])
+        elif message["type"] == "http.response.body":
+            response_body.append(message.get("body", b""))
+
+    await handler(scope, receive, send)
+
+    status = response_started.get("status", 200)
+    raw_headers = response_started.get("headers", [])
+    headers_dict = {k.decode(): v.decode() for k, v in raw_headers}
+    body = b"".join(response_body)
+    return Response(
+        content=body,
+        status_code=status,
+        headers=headers_dict,
+    )
 
 
 @app.get("/health")
