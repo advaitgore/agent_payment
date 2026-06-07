@@ -35,8 +35,11 @@ app.include_router(mandates_router)
 app.include_router(requests_router)
 app.include_router(x402_router)
 
-# Mount MCP server — accessible at /mcp for Smithery and MCP clients
-app.mount("/mcp", mcp.streamable_http_app())
+# Mount MCP ASGI app.
+# FastMCP with stateless_http=True already mounts routes at /mcp internally,
+# so we mount the ASGI app at root ("") to avoid a double /mcp/mcp prefix.
+mcp_asgi = mcp.streamable_http_app()
+app.mount("", mcp_asgi)
 
 
 @app.on_event("startup")
