@@ -8,9 +8,12 @@ from mcp.server.fastmcp import FastMCP
 BASE_URL = os.getenv("AGENTPAY_BASE_URL", "http://localhost:8000").rstrip("/")
 API_KEY = os.getenv("AGENTPAY_API_KEY")
 
+# host="0.0.0.0" prevents FastMCP from auto-enabling TrustedHostMiddleware
+# (which it only auto-enables when host is localhost/127.0.0.1/::1)
 mcp = FastMCP(
     "AgentPay",
     stateless_http=True,
+    host="0.0.0.0",
 )
 
 
