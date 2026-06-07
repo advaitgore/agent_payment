@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from apps.api.config import get_settings
@@ -33,6 +34,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Allow all hosts (Railway + Smithery proxies send arbitrary Host headers)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -50,8 +54,8 @@ app.include_router(mandates_router)
 app.include_router(requests_router)
 app.include_router(x402_router)
 
-# Mount MCP ASGI app at root so FastMCP's internal /mcp route is exposed correctly
-app.mount("", mcp.streamable_http_app())
+# Mount MCP ASGI app at /mcp
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 @app.get("/health")

@@ -11,7 +11,6 @@ API_KEY = os.getenv("AGENTPAY_API_KEY")
 mcp = FastMCP(
     "AgentPay",
     stateless_http=True,
-    allowed_hosts=["*"],
 )
 
 

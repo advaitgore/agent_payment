@@ -1,160 +1,26 @@
-name: AgentPay
-description: |
-  Give your AI agent a spending mandate — per-transaction limits, approval thresholds, and merchant allowlists.
-  AgentPay returns approved/denied decisions with a full audit trail in <100ms.
-
-  No dashboard required. Run `create_account` → `create_agent` → `create_mandate` directly from Claude
-  to get set up in under 2 minutes. Then authorize purchases, check spending, and rotate keys — all from MCP.
-version: "0.2.0"
+# Smithery configuration for AgentPay MCP server
 startCommand:
   type: http
   configSchema:
     type: object
     properties:
-      AGENTPAY_API_KEY:
+      agentpayApiKey:
         type: string
-        description: Agent API key for runtime MCP tools. Leave blank to use setup tools first.
-      AGENTPAY_BASE_URL:
+        description: AgentPay API key for the agent
+      agentpayBaseUrl:
         type: string
-        description: Base URL for the AgentPay API.
+        description: Base URL of the AgentPay API
         default: https://agentpayment-production.up.railway.app
-    required: []
-  exampleConfig:
-    AGENTPAY_API_KEY: "agp_xxxx_your_key_here"
-    AGENTPAY_BASE_URL: "https://agentpayment-production.up.railway.app"
-  commandFunction: |-
+  commandFunction: |
     (config) => ({
-      command: "python",
-      args: ["-m", "apps.api.mcp_server"],
+      command: "uvicorn",
+      args: ["apps.api.main:app", "--host", "0.0.0.0", "--port", "8080"],
       env: {
         PORT: "8080",
-        AGENTPAY_BASE_URL: config.AGENTPAY_BASE_URL || "https://agentpayment-production.up.railway.app",
-        ...(config.AGENTPAY_API_KEY ? { AGENTPAY_API_KEY: config.AGENTPAY_API_KEY } : {})
+        AGENTPAY_API_KEY: config.agentpayApiKey || "",
+        AGENTPAY_BASE_URL: config.agentpayBaseUrl || "https://agentpayment-production.up.railway.app"
       }
     })
-tools:
-  # --- Setup tools (no API key required) ---
-  - name: create_account
-    description: Create a new AgentPay user account and organization. Returns email, generated password, and org_id. Run this first if you don't have an account.
-    parameters:
-      email:
-        type: string
-        description: Email address for the new account.
-      org_name:
-        type: string
-        description: Name for your organization.
-
-  - name: create_agent
-    description: Log in and create an agent under your org. Returns agent_id and api_key. Run after create_account.
-    parameters:
-      email:
-        type: string
-        description: Account email.
-      password:
-        type: string
-        description: Account password (returned by create_account).
-      org_id:
-        type: string
-        description: Organization ID (returned by create_account).
-      agent_name:
-        type: string
-        description: Name for the agent.
-      webhook_url:
-        type: string
-        description: Optional webhook URL for decision callbacks.
-
-  - name: create_mandate
-    description: Set spending rules for an agent using its API key. Run after create_agent.
-    parameters:
-      agent_api_key:
-        type: string
-        description: API key returned by create_agent.
-      max_per_transaction:
-        type: number
-        description: Maximum USD allowed per transaction.
-      approval_threshold:
-        type: number
-        description: USD amount above which purchases are auto-denied without explicit approval.
-      allowed_merchants:
-        type: array
-        items:
-          type: string
-        description: List of allowed merchant names.
-      callback_url:
-        type: string
-        description: Optional callback URL for decision notifications.
-
-  # --- Runtime tools (requires AGENTPAY_API_KEY in env) ---
-  - name: authorize_purchase
-    description: Authorize a purchase against the agent's active mandate. Returns approved/denied with reason.
-    parameters:
-      merchant:
-        type: string
-        description: Merchant name.
-      amount:
-        type: number
-        description: Purchase amount in USD.
-      category:
-        type: string
-        description: Merchant category (e.g. infrastructure, saas, travel).
-      reason:
-        type: string
-        description: Why the agent wants to make this purchase.
-      merchant_address:
-        type: string
-        description: Merchant address or identifier (optional).
-      token:
-        type: string
-        description: Payment token (optional).
-      chain:
-        type: string
-        description: Payment chain or network (optional).
-
-  - name: get_mandate
-    description: Fetch the current spending mandate for the agent.
-
-  - name: get_spending_summary
-    description: Return total spend and transaction count for the agent.
-
-  - name: get_audit_log
-    description: List audit events for the agent with optional filters.
-    parameters:
-      action:
-        type: string
-        description: Filter by audit action (optional).
-      status:
-        type: string
-        description: Filter by decision status (optional).
-      start:
-        type: string
-        description: ISO timestamp for range start (optional).
-      end:
-        type: string
-        description: ISO timestamp for range end (optional).
-      limit:
-        type: number
-        description: Max events to return (optional).
-      offset:
-        type: number
-        description: Pagination offset (optional).
-
-  - name: update_mandate
-    description: Update the agent's mandate limits or merchant allowlist.
-    parameters:
-      max_per_transaction:
-        type: number
-        description: New max per transaction (optional).
-      approval_threshold:
-        type: number
-        description: New approval threshold (optional).
-      allowed_merchants:
-        type: array
-        items:
-          type: string
-        description: Updated merchant allowlist (optional).
-      callback_url:
-        type: string
-        description: Updated callback URL (optional).
-
-  - name: rotate_agent_key
-    description: Rotate the current agent API key. Returns the new key.
+  exampleConfig:
+    agentpayApiKey: "your-api-key-here"
+    agentpayBaseUrl: "https://agentpayment-production.up.railway.app"
