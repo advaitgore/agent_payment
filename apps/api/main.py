@@ -22,7 +22,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
-    async with mcp.session_manager:
+    async with mcp.session_manager.run():
         yield
 
 
