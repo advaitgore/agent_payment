@@ -4,6 +4,7 @@ import secrets
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.types import Tool
 from pydantic import Field
 
 BASE_URL = os.getenv("AGENTPAY_BASE_URL", "http://localhost:8000").rstrip("/")
@@ -67,7 +68,7 @@ async def _post_with_key(client: httpx.AsyncClient, path: str, payload: dict[str
     return response.json()
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 async def authorize_purchase(
     merchant: Annotated[str, Field(description="Name of the merchant or service being paid (e.g. 'OpenAI', 'AWS', 'Stripe')")],
     amount: Annotated[float, Field(description="Purchase amount in USD (e.g. 9.99)")],
@@ -95,7 +96,7 @@ async def authorize_purchase(
         return await _post(client, "/authorize-x402", payload)
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def get_mandate() -> dict[str, Any]:
     """Fetch the current spending mandate for this agent.
 
@@ -106,7 +107,7 @@ async def get_mandate() -> dict[str, Any]:
         return await _get(client, "/agents/me/mandate")
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def get_spending_summary() -> dict[str, Any]:
     """Fetch a summary of the agent's spending to date.
 
@@ -117,7 +118,7 @@ async def get_spending_summary() -> dict[str, Any]:
         return await _get(client, "/agents/me/spending")
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def get_audit_log(
     action: Annotated[str | None, Field(description="Filter by action type (e.g. 'authorize', 'deny', 'mandate_update'). Omit for all actions.")] = None,
     status: Annotated[str | None, Field(description="Filter by outcome status (e.g. 'approved', 'denied'). Omit for all statuses.")] = None,
@@ -144,7 +145,7 @@ async def get_audit_log(
         return await _get(client, "/agents/me/audit-events", params=params)
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 async def update_mandate(
     max_per_transaction: Annotated[float | None, Field(description="New maximum USD amount allowed per single transaction. Omit to leave unchanged.")] = None,
     approval_threshold: Annotated[float | None, Field(description="USD amount above which human approval is required before the agent can proceed. Omit to leave unchanged.")] = None,
@@ -167,7 +168,7 @@ async def update_mandate(
         return await _patch(client, "/agents/me/mandate", payload)
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": False})
 async def rotate_agent_key() -> dict[str, Any]:
     """Rotate the API key for the current agent and return the new key.
 
@@ -178,7 +179,7 @@ async def rotate_agent_key() -> dict[str, Any]:
         return await _post(client, "/agents/me/rotate-key", {})
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 async def create_account(
     email: Annotated[str, Field(description="Email address for the new user account (e.g. 'user@example.com')")],
     org_name: Annotated[str, Field(description="Display name for the organization to create alongside this account (e.g. 'Acme AI')")],
@@ -199,7 +200,7 @@ async def create_account(
     return {"email": email, "password": password, "org_id": org_resp.get("id")}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 async def create_agent(
     email: Annotated[str, Field(description="Email of the existing AgentPay user account that owns this agent")],
     password: Annotated[str, Field(description="Password for the user account (returned by create_account)")],
@@ -223,7 +224,7 @@ async def create_agent(
     return {"agent_id": agent_resp.get("id"), "api_key": agent_resp.get("api_key")}
 
 
-@mcp.tool()
+@mcp.tool(annotations={"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True})
 async def create_mandate(
     agent_api_key: Annotated[str, Field(description="API key of the agent to create the mandate for (returned by create_agent)")],
     max_per_transaction: Annotated[float, Field(description="Maximum USD amount allowed in a single transaction (e.g. 50.0)")],
@@ -244,3 +245,8 @@ async def create_mandate(
     }
     async with httpx.AsyncClient(timeout=10.0) as client:
         return await _post_with_key(client, "/agents/me/mandate", payload, agent_api_key)
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "8080"))
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
