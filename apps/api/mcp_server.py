@@ -1,10 +1,10 @@
 import os
-from typing import Any
+from typing import Any, Annotated
 import secrets
-from typing import Annotated
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
 BASE_URL = os.getenv("AGENTPAY_BASE_URL", "http://localhost:8000").rstrip("/")
 API_KEY = os.getenv("AGENTPAY_API_KEY")
@@ -69,13 +69,13 @@ async def _post_with_key(client: httpx.AsyncClient, path: str, payload: dict[str
 
 @mcp.tool()
 async def authorize_purchase(
-    merchant: Annotated[str, "Name of the merchant or service being paid (e.g. 'OpenAI', 'AWS', 'Stripe')"],
-    amount: Annotated[float, "Purchase amount in USD (e.g. 9.99)"],
-    category: Annotated[str, "Spending category for this purchase (e.g. 'ai-inference', 'cloud-storage', 'data')"],
-    reason: Annotated[str, "Brief justification for why the agent is making this purchase"],
-    merchant_address: Annotated[str, "On-chain wallet address of the merchant, if applicable. Use 'unknown' if not relevant."] = "unknown",
-    token: Annotated[str, "Payment token/currency to use (e.g. 'USDC', 'ETH'). Use 'unknown' for fiat."] = "unknown",
-    chain: Annotated[str, "Blockchain network for the payment (e.g. 'base', 'ethereum'). Use 'unknown' for fiat."] = "unknown",
+    merchant: Annotated[str, Field(description="Name of the merchant or service being paid (e.g. 'OpenAI', 'AWS', 'Stripe')")],
+    amount: Annotated[float, Field(description="Purchase amount in USD (e.g. 9.99)")],
+    category: Annotated[str, Field(description="Spending category for this purchase (e.g. 'ai-inference', 'cloud-storage', 'data')")],
+    reason: Annotated[str, Field(description="Brief justification for why the agent is making this purchase")],
+    merchant_address: Annotated[str, Field(description="On-chain wallet address of the merchant, if applicable. Use 'unknown' if not relevant.")] = "unknown",
+    token: Annotated[str, Field(description="Payment token/currency to use (e.g. 'USDC', 'ETH'). Use 'unknown' for fiat.")] = "unknown",
+    chain: Annotated[str, Field(description="Blockchain network for the payment (e.g. 'base', 'ethereum'). Use 'unknown' for fiat.")] = "unknown",
 ) -> dict[str, Any]:
     """Check whether a purchase is permitted under the agent's mandate and, if so, authorize it.
 
@@ -119,12 +119,12 @@ async def get_spending_summary() -> dict[str, Any]:
 
 @mcp.tool()
 async def get_audit_log(
-    action: Annotated[str | None, "Filter by action type (e.g. 'authorize', 'deny', 'mandate_update'). Omit for all actions."] = None,
-    status: Annotated[str | None, "Filter by outcome status (e.g. 'approved', 'denied'). Omit for all statuses."] = None,
-    start: Annotated[str | None, "Start of date range in ISO 8601 format (e.g. '2025-01-01T00:00:00Z'). Omit for no lower bound."] = None,
-    end: Annotated[str | None, "End of date range in ISO 8601 format (e.g. '2025-12-31T23:59:59Z'). Omit for no upper bound."] = None,
-    limit: Annotated[int | None, "Maximum number of events to return (default: 50, max: 200)."] = None,
-    offset: Annotated[int | None, "Number of events to skip for pagination (default: 0)."] = None,
+    action: Annotated[str | None, Field(description="Filter by action type (e.g. 'authorize', 'deny', 'mandate_update'). Omit for all actions.")] = None,
+    status: Annotated[str | None, Field(description="Filter by outcome status (e.g. 'approved', 'denied'). Omit for all statuses.")] = None,
+    start: Annotated[str | None, Field(description="Start of date range in ISO 8601 format (e.g. '2025-01-01T00:00:00Z'). Omit for no lower bound.")] = None,
+    end: Annotated[str | None, Field(description="End of date range in ISO 8601 format (e.g. '2025-12-31T23:59:59Z'). Omit for no upper bound.")] = None,
+    limit: Annotated[int | None, Field(description="Maximum number of events to return (default: 50, max: 200).")] = None,
+    offset: Annotated[int | None, Field(description="Number of events to skip for pagination (default: 0).")] = None,
 ) -> dict[str, Any]:
     """Fetch the audit log of all authorization events for this agent.
 
@@ -146,10 +146,10 @@ async def get_audit_log(
 
 @mcp.tool()
 async def update_mandate(
-    max_per_transaction: Annotated[float | None, "New maximum USD amount allowed per single transaction. Omit to leave unchanged."] = None,
-    approval_threshold: Annotated[float | None, "USD amount above which human approval is required before the agent can proceed. Omit to leave unchanged."] = None,
-    allowed_merchants: Annotated[list[str] | None, "Allowlist of merchant names the agent may pay. Pass an empty list [] to allow all merchants. Omit to leave unchanged."] = None,
-    callback_url: Annotated[str | None, "HTTPS URL to receive webhook notifications for authorization events. Omit to leave unchanged."] = None,
+    max_per_transaction: Annotated[float | None, Field(description="New maximum USD amount allowed per single transaction. Omit to leave unchanged.")] = None,
+    approval_threshold: Annotated[float | None, Field(description="USD amount above which human approval is required before the agent can proceed. Omit to leave unchanged.")] = None,
+    allowed_merchants: Annotated[list[str] | None, Field(description="Allowlist of merchant names the agent may pay. Pass an empty list [] to allow all merchants. Omit to leave unchanged.")] = None,
+    callback_url: Annotated[str | None, Field(description="HTTPS URL to receive webhook notifications for authorization events. Omit to leave unchanged.")] = None,
 ) -> dict[str, Any]:
     """Update one or more fields of the agent's spending mandate.
 
@@ -180,8 +180,8 @@ async def rotate_agent_key() -> dict[str, Any]:
 
 @mcp.tool()
 async def create_account(
-    email: Annotated[str, "Email address for the new user account (e.g. 'user@example.com')"],
-    org_name: Annotated[str, "Display name for the organization to create alongside this account (e.g. 'Acme AI')"],
+    email: Annotated[str, Field(description="Email address for the new user account (e.g. 'user@example.com')")],
+    org_name: Annotated[str, Field(description="Display name for the organization to create alongside this account (e.g. 'Acme AI')")],
 ) -> dict[str, Any]:
     """Create a new AgentPay user account and an organization in one step.
 
@@ -201,11 +201,11 @@ async def create_account(
 
 @mcp.tool()
 async def create_agent(
-    email: Annotated[str, "Email of the existing AgentPay user account that owns this agent"],
-    password: Annotated[str, "Password for the user account (returned by create_account)"],
-    org_id: Annotated[str, "UUID of the organization to create the agent under (returned by create_account)"],
-    agent_name: Annotated[str, "Human-readable name for this agent (e.g. 'research-bot', 'purchasing-agent')"],
-    webhook_url: Annotated[str | None, "Optional HTTPS URL to receive real-time authorization event webhooks"] = None,
+    email: Annotated[str, Field(description="Email of the existing AgentPay user account that owns this agent")],
+    password: Annotated[str, Field(description="Password for the user account (returned by create_account)")],
+    org_id: Annotated[str, Field(description="UUID of the organization to create the agent under (returned by create_account)")],
+    agent_name: Annotated[str, Field(description="Human-readable name for this agent (e.g. 'research-bot', 'purchasing-agent')")],
+    webhook_url: Annotated[str | None, Field(description="Optional HTTPS URL to receive real-time authorization event webhooks")] = None,
 ) -> dict[str, Any]:
     """Create a new agent under an existing organization.
 
@@ -225,11 +225,11 @@ async def create_agent(
 
 @mcp.tool()
 async def create_mandate(
-    agent_api_key: Annotated[str, "API key of the agent to create the mandate for (returned by create_agent)"],
-    max_per_transaction: Annotated[float, "Maximum USD amount allowed in a single transaction (e.g. 50.0)"],
-    approval_threshold: Annotated[float, "USD amount above which human approval is required before the agent can proceed (e.g. 100.0)"],
-    allowed_merchants: Annotated[list[str], "List of merchant names the agent is permitted to pay. Pass an empty list [] to allow all merchants."],
-    callback_url: Annotated[str | None, "Optional HTTPS URL to receive webhook notifications for authorization events"] = None,
+    agent_api_key: Annotated[str, Field(description="API key of the agent to create the mandate for (returned by create_agent)")],
+    max_per_transaction: Annotated[float, Field(description="Maximum USD amount allowed in a single transaction (e.g. 50.0)")],
+    approval_threshold: Annotated[float, Field(description="USD amount above which human approval is required before the agent can proceed (e.g. 100.0)")],
+    allowed_merchants: Annotated[list[str], Field(description="List of merchant names the agent is permitted to pay. Pass an empty list [] to allow all merchants.")],
+    callback_url: Annotated[str | None, Field(description="Optional HTTPS URL to receive webhook notifications for authorization events")] = None,
 ) -> dict[str, Any]:
     """Create a spending mandate for an agent using its API key.
 
