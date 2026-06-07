@@ -4,7 +4,6 @@ import secrets
 
 import httpx
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.server import Settings
 
 BASE_URL = os.getenv("AGENTPAY_BASE_URL", "http://localhost:8000").rstrip("/")
 API_KEY = os.getenv("AGENTPAY_API_KEY")
@@ -12,9 +11,7 @@ API_KEY = os.getenv("AGENTPAY_API_KEY")
 mcp = FastMCP(
     "AgentPay",
     stateless_http=True,
-    host="0.0.0.0",
-    port=8000,
-    settings=Settings(host="0.0.0.0", port=8000, allowed_hosts=["*"]),
+    allowed_hosts=["*"],
 )
 
 
