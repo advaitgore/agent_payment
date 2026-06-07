@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Callable
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,8 +55,23 @@ app.include_router(mandates_router)
 app.include_router(requests_router)
 app.include_router(x402_router)
 
-# Mount MCP ASGI app at /mcp
-app.mount("/mcp", mcp.streamable_http_app())
+
+def trusted_mcp_app(inner_app: Callable) -> Callable:
+    """Wrap the FastMCP ASGI app, overriding the HTTP_HOST scope value to
+    'localhost' so FastMCP's internal TrustedHostMiddleware always passes."""
+    async def wrapper(scope, receive, send):
+        if scope.get("type") == "http":
+            headers = [
+                (b"host", b"localhost") if name.lower() == b"host" else (name, value)
+                for name, value in scope.get("headers", [])
+            ]
+            scope = {**scope, "headers": headers, "server": ("localhost", 80)}
+        await inner_app(scope, receive, send)
+    return wrapper
+
+
+# Mount MCP ASGI app at /mcp with host spoofing wrapper
+app.mount("/mcp", trusted_mcp_app(mcp.streamable_http_app()))
 
 
 @app.get("/health")
