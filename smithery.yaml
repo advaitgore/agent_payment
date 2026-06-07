@@ -6,11 +6,13 @@ startCommand:
     properties:
       agentpayApiKey:
         type: string
-        description: AgentPay API key for the agent
+        description: AgentPay API key for the agent. Get one by calling create_account → create_agent, or from your AgentPay dashboard.
       agentpayBaseUrl:
         type: string
-        description: Base URL of the AgentPay API
+        description: Base URL of the AgentPay API. Leave as default unless self-hosting.
         default: https://agentpayment-production.up.railway.app
+    required:
+      - agentpayApiKey
   commandFunction: |
     (config) => ({
       command: "uvicorn",
@@ -22,6 +24,6 @@ startCommand:
       }
     })
   exampleConfig:
-    agentpayApiKey: "your-api-key-here"
+    agentpayApiKey: "6e9b7b2f69ad7a432f0086f47ed1d64833077c1fe1ae7643ecb8d827e22d495a"
     agentpayBaseUrl: "https://agentpayment-production.up.railway.app"
   streamableHttpUrl: "https://agentpayment-production.up.railway.app/mcp/mcp"
