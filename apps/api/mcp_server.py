@@ -196,8 +196,3 @@ async def create_mandate(
     }
     async with httpx.AsyncClient(timeout=10.0) as client:
         return await _post_with_key(client, "/agents/me/mandate", payload, agent_api_key)
-
-
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080"))
-    mcp.run(transport="streamable-http", host="0.0.0.0", port=port)
