@@ -43,6 +43,16 @@ async function apiCall<T>(endpoint: string, method: string = 'GET', body?: unkno
   return resp.json() as Promise<T>;
 }
 
+export interface ProvisionResponse {
+  api_key: string;
+  agent_id: string;
+  org_id: string;
+}
+
+export async function signupAndProvision(payload: UserSignup): Promise<ProvisionResponse> {
+  return apiCall<ProvisionResponse>('/auth/signup-and-provision', 'POST', payload);
+}
+
 export async function createOrg(payload: OrganizationCreate): Promise<OrganizationRead> {
   return apiCall<OrganizationRead>('/orgs', 'POST', payload);
 }
