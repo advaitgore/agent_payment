@@ -22,6 +22,43 @@ npx @smithery/cli install advaitgore/payguard --client claude
 
 You'll be prompted for your `agentpayApiKey`. Get one by calling `create_account` → `create_agent` through the MCP server itself, or via the [REST API](https://agentpayment-production.up.railway.app/docs).
 
+## Example: Agent Authorizing a Purchase
+
+An agent calls `authorize_purchase` before spending. Here’s what the exchange looks like:
+
+**Request:**
+```json
+{
+  "merchant": "openai.com",
+  "amount": 10.00,
+  "currency": "USD",
+  "description": "API credits for task execution"
+}
+```
+
+**Approved response:**
+```json
+{
+  "status": "approved",
+  "transaction_id": "txn_01j9k2m...",
+  "amount": 10.00,
+  "merchant": "openai.com",
+  "remaining_budget": 40.00,
+  "message": "Purchase approved within mandate limits"
+}
+```
+
+**Denied response** (e.g. merchant not on allowlist):
+```json
+{
+  "status": "denied",
+  "reason": "merchant_not_allowed",
+  "message": "openai.com is not on the approved merchant list for this agent"
+}
+```
+
+> **What the agent should do:** If `status` is `approved`, proceed with the payment. If `denied`, stop and surface the `reason` to the user or orchestrator — never retry without updated mandate permissions.
+
 ## Available Tools
 
 | Tool | What it does |
