@@ -142,7 +142,7 @@ export default function DashboardPage({ onNavigate }: Props) {
         <div style={{ backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, padding: tokens.spacing.lg }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: tokens.spacing.lg }}>
             <span style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, textTransform: 'uppercase', letterSpacing: tokens.typography.letterSpacing.wider }}>Recent Events</span>
-            <button onClick={() => onNavigate('audit')} style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.accent, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: tokens.typography.letterSpacing.wide }}>
+            <button onClick={() => onNavigate('audit-log')} style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.accent, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: tokens.typography.letterSpacing.wide }}>
               View all -&gt;
             </button>
           </div>
