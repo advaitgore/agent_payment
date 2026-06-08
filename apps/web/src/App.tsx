@@ -1,152 +1,220 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import './index.css'
-import Sidebar from './components/Sidebar'
-import TopBar from './components/TopBar'
-import DashboardPage from './pages/DashboardPage'
-import AgentsPage from './pages/AgentsPage'
-import AuditLogPage from './pages/AuditLogPage'
-import SetupPage from './pages/SetupPage'
-import SettingsPage from './pages/SettingsPage'
-import { getMe, login, logout, signup } from './lib/api'
-import type { UserRead } from './types/api'
+import { signupAndProvision } from './lib/api'
 import { tokens } from './tokens'
 
-export type Page = 'dashboard' | 'setup' | 'agents' | 'audit' | 'settings'
+type AppState = 'signup' | 'key_revealed'
 
-type AuthMode = 'login' | 'signup'
-type AuthState = 'loading' | 'authenticated' | 'unauthenticated'
+const SMITHERY_CMD = 'npx @smithery/cli install advaitgore/payguard --client claude'
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard')
-  const [authState, setAuthState] = useState<AuthState>('loading')
-  const [authMode, setAuthMode] = useState<AuthMode>('login')
-  const [user, setUser] = useState<UserRead | null>(null)
+  const [appState, setAppState] = useState<AppState>('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [authError, setAuthError] = useState<string | null>(null)
+  const [apiKey, setApiKey] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [copied, setCopied] = useState<'key' | 'cmd' | null>(null)
 
-  useEffect(() => {
-    getMe()
-      .then((me) => {
-        setUser(me)
-        setAuthState('authenticated')
-      })
-      .catch(() => {
-        setAuthState('unauthenticated')
-      })
-  }, [])
-
-  const pageMap: Record<Page, { title: string; subtitle?: string }> = {
-    dashboard: { title: 'Authorization Console', subtitle: 'Overview' },
-    setup: { title: 'Authorization Console', subtitle: 'Setup' },
-    agents: { title: 'Authorization Console', subtitle: 'Agents' },
-    audit: { title: 'Authorization Console', subtitle: 'Audit Log' },
-    settings: { title: 'Authorization Console', subtitle: 'Settings' },
-  }
-
-  const nav = (page: Page) => setCurrentPage(page)
-
-  const handleAuthSubmit = async (event: FormEvent) => {
-    event.preventDefault()
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
     const normalizedEmail = email.trim().toLowerCase()
     if (!normalizedEmail || !password) {
-      setAuthError('Email and password are required.')
+      setError('Email and password are required.')
       return
     }
     setSubmitting(true)
-    setAuthError(null)
+    setError(null)
     try {
-      const session = authMode === 'signup'
-        ? await signup({ email: normalizedEmail, password })
-        : await login({ email: normalizedEmail, password })
-      setUser(session.user)
-      setAuthState('authenticated')
-      setPassword('')
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Authentication failed.')
+      const result = await signupAndProvision({ email: normalizedEmail, password })
+      setApiKey(result.api_key)
+      setAppState('key_revealed')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleLogout = async () => {
-    await logout().catch(() => undefined)
-    setUser(null)
-    setAuthState('unauthenticated')
-    setPassword('')
+  const copy = (text: string, which: 'key' | 'cmd') => {
+    navigator.clipboard.writeText(text)
+    setCopied(which)
+    setTimeout(() => setCopied(null), 2000)
   }
 
-  if (authState === 'loading') {
-    return (
-      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', backgroundColor: tokens.colors.background, color: tokens.colors.text.secondary, fontFamily: tokens.typography.fontFamily.body }}>
-        Loading session...
-      </div>
-    )
+  const containerStyle: React.CSSProperties = {
+    minHeight: '100vh',
+    display: 'grid',
+    placeItems: 'center',
+    backgroundColor: tokens.colors.background,
+    padding: tokens.spacing.md,
+    fontFamily: tokens.typography.fontFamily.body,
   }
 
-  if (authState === 'unauthenticated') {
+  const cardStyle: React.CSSProperties = {
+    width: '100%',
+    maxWidth: '420px',
+    backgroundColor: tokens.colors.surface,
+    border: `1px solid ${tokens.colors.border}`,
+    padding: '32px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacing.md,
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: tokens.typography.fontSize.xs,
+    color: tokens.colors.text.tertiary,
+    letterSpacing: tokens.typography.letterSpacing.widest,
+    textTransform: 'uppercase',
+    marginBottom: '6px',
+    display: 'block',
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    backgroundColor: tokens.colors.background,
+    border: `1px solid rgba(255,255,255,0.15)`,
+    color: tokens.colors.text.primary,
+    fontFamily: tokens.typography.fontFamily.body,
+    fontSize: tokens.typography.fontSize.sm,
+    padding: '10px 12px',
+    outline: 'none',
+    boxSizing: 'border-box',
+  }
+
+  const btnPrimaryStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '11px 16px',
+    backgroundColor: submitting ? tokens.colors.surfaceAlt : tokens.colors.accent,
+    color: submitting ? '#555' : '#000',
+    border: 'none',
+    fontFamily: tokens.typography.fontFamily.body,
+    fontSize: tokens.typography.fontSize.xs,
+    fontWeight: tokens.typography.fontWeight.bold,
+    letterSpacing: tokens.typography.letterSpacing.widest,
+    textTransform: 'uppercase' as const,
+    cursor: submitting ? 'not-allowed' : 'pointer',
+  }
+
+  const copyBtnStyle = (which: 'key' | 'cmd'): React.CSSProperties => ({
+    padding: '6px 14px',
+    backgroundColor: copied === which ? tokens.colors.surfaceAlt : 'transparent',
+    border: `1px solid ${tokens.colors.border}`,
+    color: copied === which ? tokens.colors.text.secondary : tokens.colors.accent,
+    fontFamily: tokens.typography.fontFamily.body,
+    fontSize: tokens.typography.fontSize.xs,
+    letterSpacing: tokens.typography.letterSpacing.widest,
+    textTransform: 'uppercase' as const,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  })
+
+  const monoBoxStyle: React.CSSProperties = {
+    backgroundColor: tokens.colors.background,
+    border: `1px solid ${tokens.colors.border}`,
+    padding: '10px 12px',
+    fontFamily: tokens.typography.fontFamily.mono ?? 'monospace',
+    fontSize: tokens.typography.fontSize.xs,
+    color: tokens.colors.accent,
+    overflowX: 'auto',
+    whiteSpace: 'nowrap',
+    flex: 1,
+    minWidth: 0,
+  }
+
+  if (appState === 'key_revealed') {
     return (
-      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', backgroundColor: tokens.colors.background, padding: tokens.spacing.md }}>
-        <form onSubmit={handleAuthSubmit} style={{ width: '100%', maxWidth: '380px', backgroundColor: tokens.colors.surface, border: `1px solid ${tokens.colors.border}`, padding: '20px', display: 'flex', flexDirection: 'column', gap: tokens.spacing.md }}>
-          <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.title, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, margin: 0 }}>
-            {authMode === 'login' ? 'Sign in' : 'Create account'}
-          </h1>
-          <p style={{ fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, letterSpacing: tokens.typography.letterSpacing.widest, textTransform: 'uppercase' }}>
-            AgentPay access
-          </p>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
-            style={{ width: '100%', backgroundColor: tokens.colors.background, border: `1px solid rgba(255,255,255,0.15)`, color: tokens.colors.text.primary, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, padding: '10px 12px', outline: 'none' }}
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            style={{ width: '100%', backgroundColor: tokens.colors.background, border: `1px solid rgba(255,255,255,0.15)`, color: tokens.colors.text.primary, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, padding: '10px 12px', outline: 'none' }}
-          />
-          {authError && (
-            <div style={{ backgroundColor: tokens.colors.errorBg, border: `1px solid ${tokens.colors.errorBorder}`, color: tokens.colors.error, padding: '10px 12px', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs }}>
-              {authError}
+      <div style={containerStyle}>
+        <div style={cardStyle}>
+          <div>
+            <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.title, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, margin: 0 }}>
+              AgentPay
+            </h1>
+            <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>You&apos;re set up</p>
+          </div>
+
+          <div>
+            <span style={labelStyle}>Your API key</span>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={monoBoxStyle}>{apiKey}</div>
+              <button style={copyBtnStyle('key')} onClick={() => copy(apiKey, 'key')}>
+                {copied === 'key' ? 'Copied' : 'Copy'}
+              </button>
             </div>
-          )}
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{ padding: '9px 16px', backgroundColor: submitting ? tokens.colors.surfaceAlt : tokens.colors.accent, color: submitting ? '#555' : '#000', border: 'none', fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs, fontWeight: tokens.typography.fontWeight.bold, letterSpacing: tokens.typography.letterSpacing.widest, textTransform: 'uppercase', cursor: submitting ? 'not-allowed' : 'pointer' }}
-          >
-            {submitting ? 'Please wait...' : authMode === 'login' ? 'Sign in' : 'Sign up'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
-            style={{ background: 'none', border: 'none', color: tokens.colors.accent, fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.sm, cursor: 'pointer', padding: 0 }}
-          >
-            {authMode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Sign in'}
-          </button>
-        </form>
+            <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: '8px 0 0' }}>
+              Keep this safe. Paste it as <code style={{ color: tokens.colors.text.secondary }}>AGENTPAY_API_KEY</code> when Smithery prompts you.
+            </p>
+          </div>
+
+          <div>
+            <span style={labelStyle}>Install via Smithery</span>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={monoBoxStyle}>{SMITHERY_CMD}</div>
+              <button style={copyBtnStyle('cmd')} onClick={() => copy(SMITHERY_CMD, 'cmd')}>
+                {copied === 'cmd' ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+
+          <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, lineHeight: 1.6 }}>
+            After installing, ask your agent to set a mandate — e.g. <em>&ldquo;Set my spending limit to $50 per transaction, approved merchants: Amazon, Vercel.&rdquo;</em>
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: tokens.colors.background }}>
-      <Sidebar currentPage={currentPage} onNavigate={nav} />
-      <div style={{ marginLeft: '240px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <TopBar title={pageMap[currentPage].title} subtitle={pageMap[currentPage].subtitle} userEmail={user?.email} onLogout={handleLogout} />
-        <main style={{ marginTop: '56px', padding: tokens.spacing.md, minHeight: 'calc(100vh - 56px)' }}>
-          {currentPage === 'dashboard' && <DashboardPage onNavigate={nav} />}
-          {currentPage === 'setup' && <SetupPage onNavigate={nav} />}
-          {currentPage === 'agents' && <AgentsPage onNavigate={nav} />}
-          {currentPage === 'audit' && <AuditLogPage onNavigate={nav} />}
-          {currentPage === 'settings' && <SettingsPage onNavigate={nav} />}
-        </main>
-      </div>
+    <div style={containerStyle}>
+      <form onSubmit={handleSubmit} style={cardStyle}>
+        <div>
+          <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.title, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, margin: 0 }}>
+            AgentPay
+          </h1>
+          <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>Spending controls for AI agents</p>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@company.com"
+            style={inputStyle}
+            autoComplete="email"
+          />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Min. 8 characters"
+            style={inputStyle}
+            autoComplete="new-password"
+          />
+        </div>
+
+        {error && (
+          <div style={{ backgroundColor: tokens.colors.errorBg, border: `1px solid ${tokens.colors.errorBorder}`, color: tokens.colors.error, padding: '10px 12px', fontSize: tokens.typography.fontSize.xs }}>
+            {error}
+          </div>
+        )}
+
+        <button type="submit" disabled={submitting} style={btnPrimaryStyle}>
+          {submitting ? 'Setting up...' : 'Get API Key'}
+        </button>
+
+        <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, textAlign: 'center' }}>
+          Takes 2 seconds. No credit card.
+        </p>
+      </form>
     </div>
   )
 }
