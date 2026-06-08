@@ -1,5 +1,7 @@
 # AgentPay — Payment Mandate Infrastructure for AI Agents
 
+[![smithery badge](https://smithery.ai/badge/advaitgore/payguard)](https://smithery.ai/servers/advaitgore/payguard)
+
 AgentPay gives AI agents a safe, auditable way to make payments. Instead of handing an agent a credit card with no limits, you define a **mandate** — spending caps, allowed merchants, and approval thresholds — and the agent must call `authorize_purchase` before every transaction. Every decision is logged.
 
 ## How it works
