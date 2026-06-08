@@ -1,4 +1,4 @@
-import type { Page } from '../App'
+import type { AppPage as Page } from '../types/app'
 import { tokens } from '../tokens'
 
 const NAV_ITEMS: { id: Page; icon: string; label: string }[] = [

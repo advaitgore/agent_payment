@@ -116,7 +116,7 @@ export default function App() {
     backgroundColor: tokens.colors.background,
     border: `1px solid ${tokens.colors.border}`,
     padding: '10px 12px',
-    fontFamily: tokens.typography.fontFamily.mono ?? 'monospace',
+    fontFamily: 'monospace',
     fontSize: tokens.typography.fontSize.xs,
     color: tokens.colors.accent,
     overflowX: 'auto',

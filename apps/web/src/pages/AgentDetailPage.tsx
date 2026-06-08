@@ -1,5 +1,5 @@
 // AgentDetailPage — standalone, no react-router-dom dependency
-import type { Page } from '../App'
+import type { AppPage as Page } from '../types/app'
 
 interface Props {
   onNavigate: (page: Page) => void
