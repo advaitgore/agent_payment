@@ -34,6 +34,7 @@ export const tokens = {
     fontFamily: {
       display: 'Inter',
       body: 'Space Grotesk',
+      mono: 'monospace',
     },
     fontSize: {
       xs: '10px',

@@ -6,6 +6,8 @@ import { tokens } from './tokens'
 
 type AppState = 'signup' | 'key_revealed'
 
+export type Page = 'dashboard' | 'agents' | 'agent-detail' | 'audit-log' | 'settings' | 'setup'
+
 const SMITHERY_CMD = 'npx @smithery/cli install advaitgore/payguard --client claude'
 
 export default function App() {
@@ -116,7 +118,7 @@ export default function App() {
     backgroundColor: tokens.colors.background,
     border: `1px solid ${tokens.colors.border}`,
     padding: '10px 12px',
-    fontFamily: 'monospace',
+    fontFamily: tokens.typography.fontFamily.mono,
     fontSize: tokens.typography.fontSize.xs,
     color: tokens.colors.accent,
     overflowX: 'auto',
