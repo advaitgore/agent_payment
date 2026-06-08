@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from apps.api.auth import clear_auth_cookie, create_access_token, get_current_user, hash_password, set_auth_cookie, verify_password
-from apps.api.db.models import User
+from apps.api.db.models import Agent, Organization, User, UserOrganization
 from apps.api.db.session import get_db
-from apps.api.models.schemas import AuthSessionResponse, UserLogin, UserRead, UserSignup
+from apps.api.models.schemas import AuthSessionResponse, ProvisionResponse, UserLogin, UserRead, UserSignup
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -38,6 +38,48 @@ def signup(
     token = create_access_token(user)
     set_auth_cookie(response, token)
     return AuthSessionResponse(user=UserRead.model_validate(user), access_token=token)
+
+
+@router.post(
+    "/signup-and-provision",
+    response_model=ProvisionResponse,
+    summary="Signup and provision",
+    description="Create user, org, and default agent in one call. Returns the agent API key.",
+)
+def signup_and_provision(
+    payload: UserSignup,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> ProvisionResponse:
+    email = payload.email.strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=409, detail="Email already exists")
+
+    user = User(email=email, password_hash=hash_password(payload.password))
+    db.add(user)
+    db.flush()
+
+    org_name = email.split("@")[0]
+    org = Organization(name=org_name)
+    db.add(org)
+    db.flush()
+
+    db.add(UserOrganization(user_id=user.id, org_id=org.id))
+
+    agent = Agent(org_id=org.id, name="default")
+    db.add(agent)
+    db.commit()
+    db.refresh(agent)
+
+    token = create_access_token(user)
+    set_auth_cookie(response, token)
+
+    return ProvisionResponse(api_key=agent.api_key, agent_id=agent.id, org_id=org.id)
 
 
 @router.post(
