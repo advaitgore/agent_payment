@@ -24,6 +24,6 @@ startCommand:
       }
     })
   exampleConfig:
-    agentpayApiKey: "6e9b7b2f69ad7a432f0086f47ed1d64833077c1fe1ae7643ecb8d827e22d495a"
+    agentpayApiKey: "your-api-key-here"
     agentpayBaseUrl: "https://agentpayment-production.up.railway.app"
   streamableHttpUrl: "https://agentpayment-production.up.railway.app/mcp/mcp"
