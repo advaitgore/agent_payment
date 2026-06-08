@@ -161,3 +161,9 @@ class PurchaseEvaluationResponse(BaseModel):
     request_id: uuid.UUID
     decision_status: DecisionStatus
     reason: str
+
+
+class ProvisionResponse(BaseModel):
+    api_key: str
+    agent_id: uuid.UUID
+    org_id: uuid.UUID
