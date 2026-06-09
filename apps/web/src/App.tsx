@@ -2,25 +2,50 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import './index.css'
 import { signupAndProvision, login, listAgents } from './lib/api'
+import type { AgentRead } from './types/api'
 import { tokens } from './tokens'
 
-type AppState = 'signup' | 'key_revealed'
+type AppState = 'auth' | 'key_revealed'
 type AuthMode = 'signup' | 'login'
 
 export type Page = 'dashboard' | 'agents' | 'agent-detail' | 'audit-log' | 'settings' | 'setup'
 
 const SMITHERY_CMD = 'npx @smithery/cli install advaitgore/payguard --client claude'
 
+const NEXT_STEPS = [
+  {
+    step: '1',
+    title: 'Install via Smithery',
+    detail: 'Run the command below in your terminal. When prompted, paste your API key.',
+    code: SMITHERY_CMD,
+    codeKey: 'cmd' as const,
+  },
+  {
+    step: '2',
+    title: 'Set a spending mandate',
+    detail: 'Ask your agent: "Set my spending limit to $50 per transaction, approved merchants: Amazon, Vercel."',
+    code: null,
+    codeKey: null,
+  },
+  {
+    step: '3',
+    title: 'Let your agent spend',
+    detail: 'Your agent can now request purchases. Each one is evaluated against your mandate in real time.',
+    code: null,
+    codeKey: null,
+  },
+]
+
 export default function App() {
-  const [appState, setAppState] = useState<AppState>('signup')
+  const [appState, setAppState] = useState<AppState>('auth')
   const [authMode, setAuthMode] = useState<AuthMode>('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [apiKey, setApiKey] = useState('')
+  const [agents, setAgents] = useState<AgentRead[]>([])
   const [error, setError] = useState<string | null>(null)
   const [hint, setHint] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [copied, setCopied] = useState<'key' | 'cmd' | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
 
   const switchMode = (mode: AuthMode) => {
     setAuthMode(mode)
@@ -41,14 +66,14 @@ export default function App() {
     try {
       if (authMode === 'signup') {
         const result = await signupAndProvision({ email: normalizedEmail, password })
-        setApiKey(result.api_key)
+        // Fetch the full agent list so we have the name too
+        const agentList = await listAgents(result.org_id)
+        setAgents(agentList.length > 0 ? agentList : [{ id: result.agent_id, org_id: result.org_id, name: 'default', api_key: result.api_key, created_at: '' }])
         setAppState('key_revealed')
       } else {
         await login({ email: normalizedEmail, password })
-        // login sets the session cookie; now fetch the agent key
-        const agents = await listAgents()
-        const key = agents[0]?.api_key ?? ''
-        setApiKey(key)
+        const agentList = await listAgents()
+        setAgents(agentList)
         setAppState('key_revealed')
       }
     } catch (err) {
@@ -65,11 +90,13 @@ export default function App() {
     }
   }
 
-  const copy = (text: string, which: 'key' | 'cmd') => {
+  const copy = (text: string, key: string) => {
     navigator.clipboard.writeText(text)
-    setCopied(which)
+    setCopied(key)
     setTimeout(() => setCopied(null), 2000)
   }
+
+  // ─── Styles ───────────────────────────────────────────────────────────────
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -82,7 +109,7 @@ export default function App() {
 
   const cardStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: '420px',
+    maxWidth: '480px',
     backgroundColor: tokens.colors.surface,
     border: `1px solid ${tokens.colors.border}`,
     padding: '32px',
@@ -126,20 +153,6 @@ export default function App() {
     cursor: submitting ? 'not-allowed' : 'pointer',
   }
 
-  const copyBtnStyle = (which: 'key' | 'cmd'): React.CSSProperties => ({
-    padding: '6px 14px',
-    backgroundColor: copied === which ? tokens.colors.surfaceAlt : 'transparent',
-    border: `1px solid ${tokens.colors.border}`,
-    color: copied === which ? tokens.colors.text.secondary : tokens.colors.accent,
-    fontFamily: tokens.typography.fontFamily.body,
-    fontSize: tokens.typography.fontSize.xs,
-    letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase' as const,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  })
-
   const monoBoxStyle: React.CSSProperties = {
     backgroundColor: tokens.colors.background,
     border: `1px solid ${tokens.colors.border}`,
@@ -153,10 +166,28 @@ export default function App() {
     minWidth: 0,
   }
 
+  const copyBtnStyle = (key: string): React.CSSProperties => ({
+    padding: '6px 14px',
+    backgroundColor: copied === key ? tokens.colors.surfaceAlt : 'transparent',
+    border: `1px solid ${tokens.colors.border}`,
+    color: copied === key ? tokens.colors.text.secondary : tokens.colors.accent,
+    fontFamily: tokens.typography.fontFamily.body,
+    fontSize: tokens.typography.fontSize.xs,
+    letterSpacing: tokens.typography.letterSpacing.widest,
+    textTransform: 'uppercase' as const,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  })
+
+  // ─── Key Revealed Screen ──────────────────────────────────────────────────
+
   if (appState === 'key_revealed') {
     return (
       <div style={containerStyle}>
-        <div style={cardStyle}>
+        <div style={{ ...cardStyle, maxWidth: '520px' }}>
+
+          {/* Header */}
           <div>
             <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.title, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, margin: 0 }}>
               AgentPay
@@ -164,42 +195,92 @@ export default function App() {
             <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>You&apos;re set up</p>
           </div>
 
-          {apiKey ? (
-            <div>
-              <span style={labelStyle}>Your API key</span>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <div style={monoBoxStyle}>{apiKey}</div>
-                <button style={copyBtnStyle('key')} onClick={() => copy(apiKey, 'key')}>
-                  {copied === 'key' ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-              <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: '8px 0 0' }}>
-                Keep this safe. Paste it as <code style={{ color: tokens.colors.text.secondary }}>AGENTPAY_API_KEY</code> when Smithery prompts you.
-              </p>
-            </div>
-          ) : (
-            <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
-              Signed in but no agent found. Make sure your account was provisioned via signup.
-            </p>
-          )}
+          {/* Agent API Keys */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <span style={labelStyle}>
+              {agents.length === 1 ? 'Your API key' : `API keys (${agents.length} agents)`}
+            </span>
 
-          <div>
-            <span style={labelStyle}>Install via Smithery</span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <div style={monoBoxStyle}>{SMITHERY_CMD}</div>
-              <button style={copyBtnStyle('cmd')} onClick={() => copy(SMITHERY_CMD, 'cmd')}>
-                {copied === 'cmd' ? 'Copied' : 'Copy'}
-              </button>
-            </div>
+            {agents.length === 0 && (
+              <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
+                No agents found. Make sure your account was provisioned via signup.
+              </p>
+            )}
+
+            {agents.map((agent) => (
+              <div key={agent.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {agents.length > 1 && (
+                  <span style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.secondary, fontWeight: tokens.typography.fontWeight.bold }}>
+                    {agent.name}
+                  </span>
+                )}
+                {agent.api_key ? (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={monoBoxStyle}>{agent.api_key}</div>
+                    <button style={copyBtnStyle(agent.id)} onClick={() => copy(agent.api_key!, agent.id)}>
+                      {copied === agent.id ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
+                    Key not visible — rotate it from the dashboard.
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
 
-          <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, lineHeight: 1.6 }}>
-            After installing, ask your agent to set a mandate — e.g. <em>&ldquo;Set my spending limit to $50 per transaction, approved merchants: Amazon, Vercel.&rdquo;</em>
-          </p>
+          {/* Divider */}
+          <div style={{ borderTop: `1px solid ${tokens.colors.border}` }} />
+
+          {/* Next Steps */}
+          <div>
+            <span style={labelStyle}>Next steps</span>
+            <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {NEXT_STEPS.map((s) => (
+                <li key={s.step} style={{ display: 'flex', gap: '12px' }}>
+                  <span style={{
+                    flexShrink: 0,
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `1px solid ${tokens.colors.border}`,
+                    borderRadius: '50%',
+                    fontSize: tokens.typography.fontSize.xs,
+                    color: tokens.colors.text.tertiary,
+                    lineHeight: 1,
+                    marginTop: '1px',
+                  }}>
+                    {s.step}
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                    <span style={{ fontSize: tokens.typography.fontSize.sm, color: tokens.colors.text.primary, fontWeight: tokens.typography.fontWeight.bold }}>
+                      {s.title}
+                    </span>
+                    <span style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, lineHeight: 1.6 }}>
+                      {s.detail}
+                    </span>
+                    {s.code && s.codeKey && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
+                        <div style={monoBoxStyle}>{s.code}</div>
+                        <button style={copyBtnStyle(s.codeKey)} onClick={() => copy(s.code!, s.codeKey!)}>
+                          {copied === s.codeKey ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
       </div>
     )
   }
+
+  // ─── Auth Screen ──────────────────────────────────────────────────────────
 
   return (
     <div style={containerStyle}>
