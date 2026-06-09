@@ -24,7 +24,7 @@ def get_agent_from_api_key(x_api_key: str = Header(..., alias="x-api-key"), db: 
 
 settings = get_settings()
 AUTH_COOKIE_NAME = "agentpay_session"
-AUTH_COOKIE_SAMESITE = "lax"
+AUTH_COOKIE_SAMESITE = "none"
 
 
 def _b64_encode(raw_bytes: bytes) -> str:
@@ -66,7 +66,7 @@ def set_auth_cookie(response: Response, token: str) -> None:
         key=AUTH_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=False,
+        secure=True,
         samesite=AUTH_COOKIE_SAMESITE,
         max_age=settings.auth_token_expire_minutes * 60,
         path="/",
@@ -79,7 +79,7 @@ def clear_auth_cookie(response: Response) -> None:
         path="/",
         samesite=AUTH_COOKIE_SAMESITE,
         httponly=True,
-        secure=False,
+        secure=True,
     )
 
 

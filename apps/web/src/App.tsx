@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import './index.css'
-import { signupAndProvision, login, listAgents } from './lib/api'
+import { signupAndProvision, login } from './lib/api'
 import type { AgentRead } from './types/api'
 import { tokens } from './tokens'
 
@@ -10,6 +10,7 @@ type AuthMode = 'signup' | 'login'
 
 export type Page = 'dashboard' | 'agents' | 'agent-detail' | 'audit-log' | 'settings' | 'setup'
 
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 const SMITHERY_CMD = 'npx @smithery/cli install advaitgore/payguard --client claude'
 
 const NEXT_STEPS = [
@@ -35,6 +36,15 @@ const NEXT_STEPS = [
     codeKey: null,
   },
 ]
+
+async function fetchMyAgents(token: string): Promise<AgentRead[]> {
+  const resp = await fetch(`${API_BASE}/auth/me/agents`, {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
+  })
+  if (!resp.ok) return []
+  return resp.json()
+}
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('auth')
@@ -67,12 +77,7 @@ export default function App() {
       if (authMode === 'signup') {
         const result = await signupAndProvision({ email: normalizedEmail, password })
         const session = await login({ email: normalizedEmail, password })
-        let agentList: AgentRead[] = []
-        try {
-          agentList = await listAgents(result.org_id, session.access_token)
-        } catch {
-          // fall back to the provisioned agent info
-        }
+        const agentList = await fetchMyAgents(session.access_token)
         setAgents(
           agentList.length > 0
             ? agentList
@@ -81,12 +86,7 @@ export default function App() {
         setAppState('key_revealed')
       } else {
         const session = await login({ email: normalizedEmail, password })
-        let agentList: AgentRead[] = []
-        try {
-          agentList = await listAgents(undefined, session.access_token)
-        } catch {
-          // couldn't fetch agents — still show success screen
-        }
+        const agentList = await fetchMyAgents(session.access_token)
         setAgents(agentList)
         setAppState('key_revealed')
       }

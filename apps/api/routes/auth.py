@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from apps.api.auth import clear_auth_cookie, create_access_token, get_current_user, hash_password, set_auth_cookie, verify_password
 from apps.api.db.models import Agent, Organization, User, UserOrganization
 from apps.api.db.session import get_db
-from apps.api.models.schemas import AuthSessionResponse, ProvisionResponse, UserLogin, UserRead, UserSignup
+from apps.api.models.schemas import AgentRead, AuthSessionResponse, ProvisionResponse, UserLogin, UserRead, UserSignup
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -111,6 +111,26 @@ def login(
 )
 def me(user: User = Depends(get_current_user)) -> UserRead:
     return UserRead.model_validate(user)
+
+
+@router.get(
+    "/me/agents",
+    response_model=list[AgentRead],
+    summary="List agents for current user",
+    description="Return all agents belonging to any org the current user is a member of.",
+)
+def me_agents(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[AgentRead]:
+    agents = (
+        db.query(Agent)
+        .join(Organization, Organization.id == Agent.org_id)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .filter(UserOrganization.user_id == current_user.id)
+        .all()
+    )
+    return [AgentRead.model_validate(a) for a in agents]
 
 
 @router.post(
