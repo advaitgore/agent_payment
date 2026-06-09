@@ -68,7 +68,12 @@ export default function App() {
         const result = await signupAndProvision({ email: normalizedEmail, password })
         // signup-and-provision doesn't return a session token, so we do a login to get one
         const session = await login({ email: normalizedEmail, password })
-        const agentList = await listAgents(result.org_id, session.access_token)
+        let agentList: AgentRead[] = []
+        try {
+          agentList = await listAgents(result.org_id, session.access_token)
+        } catch {
+          // fall back to the provisioned agent info
+        }
         setAgents(
           agentList.length > 0
             ? agentList
@@ -77,13 +82,17 @@ export default function App() {
         setAppState('key_revealed')
       } else {
         const session = await login({ email: normalizedEmail, password })
-        // Pass the token directly — avoids cookie timing race on immediate follow-up call
-        const agentList = await listAgents(undefined, session.access_token)
+        let agentList: AgentRead[] = []
+        try {
+          agentList = await listAgents(undefined, session.access_token)
+        } catch {
+          // couldn't fetch agents — still show success screen
+        }
         setAgents(agentList)
         setAppState('key_revealed')
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      const msg = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Something went wrong.')
       const isDuplicate = /already exists|duplicate|conflict|registered/i.test(msg) || msg.includes('409')
       if (authMode === 'signup' && isDuplicate) {
         setError('An account with that email already exists.')
@@ -209,7 +218,7 @@ export default function App() {
 
             {agents.length === 0 && (
               <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
-                No agents found. Make sure your account was provisioned via signup.
+                Signed in successfully. Your API key was issued at signup — rotate it from your agent settings if needed.
               </p>
             )}
 
