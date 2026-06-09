@@ -15,22 +15,22 @@ const SMITHERY_CMD = 'npx @smithery/cli install advaitgore/payguard --client cla
 const NEXT_STEPS = [
   {
     step: '1',
-    title: 'Install via Smithery',
-    detail: 'Run the command below in your terminal. When prompted, paste your API key.',
+    title: 'Install into your agent',
+    detail: 'Run this in your terminal. When prompted, paste the API key above. Works with Claude, Cursor, Windsurf, and any MCP-compatible agent.',
     code: SMITHERY_CMD,
     codeKey: 'cmd' as const,
   },
   {
     step: '2',
-    title: 'Set a spending mandate',
-    detail: 'Ask your agent: "Set my spending limit to $50 per transaction, approved merchants: Amazon, Vercel."',
+    title: 'Give your agent a spending mandate',
+    detail: 'Tell your agent: "Set my spending limit to $50 per transaction, approved merchants: Amazon, Vercel." It will call AgentPay to store the rules.',
     code: null,
     codeKey: null,
   },
   {
     step: '3',
-    title: 'Let your agent spend',
-    detail: 'Your agent can now request purchases. Each one is evaluated against your mandate in real time.',
+    title: 'Let it run',
+    detail: 'Your agent now evaluates every purchase attempt against the mandate in real time — no babysitting required. Anything outside the rules is blocked and logged.',
     code: null,
     codeKey: null,
   },
@@ -66,7 +66,6 @@ export default function App() {
     try {
       if (authMode === 'signup') {
         const result = await signupAndProvision({ email: normalizedEmail, password })
-        // signup-and-provision doesn't return a session token, so we do a login to get one
         const session = await login({ email: normalizedEmail, password })
         let agentList: AgentRead[] = []
         try {
@@ -207,18 +206,18 @@ export default function App() {
             <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.title, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, margin: 0 }}>
               AgentPay
             </h1>
-            <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>You&apos;re set up</p>
+            <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>Ready to install</p>
           </div>
 
           {/* Agent API Keys */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <span style={labelStyle}>
-              {agents.length === 1 ? 'Your API key' : `API keys (${agents.length} agents)`}
+              {agents.length === 1 ? 'Agent API key' : agents.length > 1 ? `Agent API keys (${agents.length})` : 'Agent API key'}
             </span>
 
             {agents.length === 0 && (
               <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
-                Signed in successfully. Your API key was issued at signup — rotate it from your agent settings if needed.
+                Signed in. Your API key was issued at signup — paste it when Smithery prompts you, or rotate it from agent settings.
               </p>
             )}
 
@@ -250,7 +249,7 @@ export default function App() {
 
           {/* Next Steps */}
           <div>
-            <span style={labelStyle}>Next steps</span>
+            <span style={labelStyle}>Set up your agent</span>
             <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {NEXT_STEPS.map((s) => (
                 <li key={s.step} style={{ display: 'flex', gap: '12px' }}>

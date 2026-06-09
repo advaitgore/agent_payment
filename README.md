@@ -2,30 +2,52 @@
 
 [![smithery badge](https://smithery.ai/badge/advaitgore/payguard)](https://smithery.ai/servers/advaitgore/payguard)
 
-> **Set a budget. Let your agent run. Know it can't overspend.**
+> **Give your AI agent a wallet with rules it can't break.**
 
-AgentPay is the authorization layer between an AI agent and real spending. You define the rules — spending caps, allowed merchants, time windows — and every purchase attempt the agent makes is checked against them in real time. Approved transactions go through. Anything outside the mandate is blocked and logged.
+AgentPay is the authorization layer between an AI agent and real spending. Install it into any MCP-compatible agent, define your rules once — spending caps, approved merchants, time windows — and every purchase the agent attempts is checked against them in real time. Approved transactions go through. Anything outside the mandate is blocked, logged, and surfaced to you.
 
-No more babysitting every agent action. No more runaway charges.
+Your agent runs autonomously. You stay in control.
 
 ---
 
 ## How It Works
 
 ```
-Human sets mandate once
-        ↓
-  Agent runs autonomously
-        ↓
-  Before every purchase:
-  agent calls authorize_purchase
-        ↓               ↓
+You install AgentPay into your agent
+            ↓
+   You set a spending mandate once
+            ↓
+     Agent runs autonomously
+            ↓
+   Before every purchase attempt:
+   agent calls authorize_purchase
+          ↓               ↓
    ✅ Approved      ❌ Denied
    Agent proceeds   Agent stops,
-                    reports to user
+                    reports to you
 ```
 
 AgentPay sits between your agent's intent and the actual transaction — it doesn't move money itself, it decides whether the agent is *allowed* to.
+
+---
+
+## Install Into Your Agent
+
+Works with Claude, Cursor, Windsurf, and any MCP-compatible agent:
+
+```bash
+npx @smithery/cli install advaitgore/payguard --client claude
+```
+
+When prompted, paste your API key from [agent-payment-eight.vercel.app](https://agent-payment-eight.vercel.app).
+
+Then tell your agent to set up a mandate:
+
+```
+"Set my spending limit to $50 per transaction. Approved merchants: Amazon, Vercel, GitHub."
+```
+
+That's it. Your agent now has spending rules it evaluates autonomously before every purchase.
 
 ---
 
@@ -63,29 +85,9 @@ AgentPay sits between your agent's intent and the actual transaction — it does
 
 ---
 
-## Quickstart
+## How the Agent Uses It
 
-Install via Smithery (works with Claude, Cursor, Windsurf, and any MCP-compatible client):
-
-```bash
-npx @smithery/cli install advaitgore/payguard --client claude
-```
-
-You'll be prompted for your `agentpayApiKey`. Get one in three steps through the MCP server itself:
-
-```
-1. create_account   → creates your user + org
-2. create_agent     → provisions an agent, returns api_key
-3. create_mandate   → sets spending rules for that agent
-```
-
-Or use the [REST API](https://agentpayment-production.up.railway.app/docs) directly.
-
----
-
-## Example: Agent Authorizing a Purchase
-
-**The agent calls `authorize_purchase` before spending:**
+Once installed, your agent calls `authorize_purchase` before any spend:
 
 ```json
 {
@@ -117,7 +119,7 @@ Or use the [REST API](https://agentpayment-production.up.railway.app/docs) direc
 }
 ```
 
-> **What the agent should do:** `approved` → proceed with payment. `denied` → stop and surface the `reason` to the user. Never retry without updated mandate permissions.
+> **What the agent should do:** `approved` → proceed. `denied` → stop and surface the `reason` to the user. Never retry without updated mandate permissions.
 
 ---
 
