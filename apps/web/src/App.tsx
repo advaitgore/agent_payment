@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import './index.css'
-import { signupAndProvision } from './lib/api'
+import { signupAndProvision, login } from './lib/api'
 import { tokens } from './tokens'
 
 type AppState = 'signup' | 'key_revealed'
+type AuthMode = 'signup' | 'login'
 
 export type Page = 'dashboard' | 'agents' | 'agent-detail' | 'audit-log' | 'settings' | 'setup'
 
@@ -12,12 +13,20 @@ const SMITHERY_CMD = 'npx @smithery/cli install advaitgore/payguard --client cla
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('signup')
+  const [authMode, setAuthMode] = useState<AuthMode>('signup')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [hint, setHint] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [copied, setCopied] = useState<'key' | 'cmd' | null>(null)
+
+  const switchMode = (mode: AuthMode) => {
+    setAuthMode(mode)
+    setError(null)
+    setHint(null)
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -28,12 +37,27 @@ export default function App() {
     }
     setSubmitting(true)
     setError(null)
+    setHint(null)
     try {
-      const result = await signupAndProvision({ email: normalizedEmail, password })
-      setApiKey(result.api_key)
-      setAppState('key_revealed')
+      if (authMode === 'signup') {
+        const result = await signupAndProvision({ email: normalizedEmail, password })
+        setApiKey(result.api_key)
+        setAppState('key_revealed')
+      } else {
+        const result = await login({ email: normalizedEmail, password })
+        const key = (result as unknown as { api_key?: string }).api_key ?? ''
+        setApiKey(key)
+        setAppState('key_revealed')
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
+      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      const isDuplicate = /already exists|duplicate|conflict|registered/i.test(msg) || msg.includes('409')
+      if (authMode === 'signup' && isDuplicate) {
+        setError('An account with that email already exists.')
+        setHint('Switch to Sign In to continue.')
+      } else {
+        setError(msg)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -138,18 +162,24 @@ export default function App() {
             <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>You&apos;re set up</p>
           </div>
 
-          <div>
-            <span style={labelStyle}>Your API key</span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <div style={monoBoxStyle}>{apiKey}</div>
-              <button style={copyBtnStyle('key')} onClick={() => copy(apiKey, 'key')}>
-                {copied === 'key' ? 'Copied' : 'Copy'}
-              </button>
+          {apiKey ? (
+            <div>
+              <span style={labelStyle}>Your API key</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={monoBoxStyle}>{apiKey}</div>
+                <button style={copyBtnStyle('key')} onClick={() => copy(apiKey, 'key')}>
+                  {copied === 'key' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: '8px 0 0' }}>
+                Keep this safe. Paste it as <code style={{ color: tokens.colors.text.secondary }}>AGENTPAY_API_KEY</code> when Smithery prompts you.
+              </p>
             </div>
-            <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: '8px 0 0' }}>
-              Keep this safe. Paste it as <code style={{ color: tokens.colors.text.secondary }}>AGENTPAY_API_KEY</code> when Smithery prompts you.
+          ) : (
+            <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
+              Signed in successfully. Your API key was issued at signup — check your original setup email or the Setup page.
             </p>
-          </div>
+          )}
 
           <div>
             <span style={labelStyle}>Install via Smithery</span>
@@ -179,6 +209,34 @@ export default function App() {
           <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>Spending controls for AI agents</p>
         </div>
 
+        {/* Tab toggle */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${tokens.colors.border}` }}>
+          {(['signup', 'login'] as AuthMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => switchMode(mode)}
+              style={{
+                flex: 1,
+                padding: `${tokens.spacing.sm} 0`,
+                background: 'none',
+                border: 'none',
+                borderBottom: authMode === mode ? `2px solid ${tokens.colors.accent}` : '2px solid transparent',
+                color: authMode === mode ? tokens.colors.accent : tokens.colors.text.muted,
+                fontFamily: tokens.typography.fontFamily.body,
+                fontSize: tokens.typography.fontSize.xs,
+                fontWeight: tokens.typography.fontWeight.bold,
+                letterSpacing: tokens.typography.letterSpacing.widest,
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                marginBottom: '-1px',
+              }}
+            >
+              {mode === 'signup' ? 'Sign Up' : 'Sign In'}
+            </button>
+          ))}
+        </div>
+
         <div>
           <label style={labelStyle}>Email</label>
           <input
@@ -199,23 +257,35 @@ export default function App() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Min. 8 characters"
             style={inputStyle}
-            autoComplete="new-password"
+            autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
           />
         </div>
 
         {error && (
           <div style={{ backgroundColor: tokens.colors.errorBg, border: `1px solid ${tokens.colors.errorBorder}`, color: tokens.colors.error, padding: '10px 12px', fontSize: tokens.typography.fontSize.xs }}>
             {error}
+            {hint && (
+              <span
+                onClick={() => switchMode('login')}
+                style={{ marginLeft: '6px', color: tokens.colors.accent, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {hint}
+              </span>
+            )}
           </div>
         )}
 
         <button type="submit" disabled={submitting} style={btnPrimaryStyle}>
-          {submitting ? 'Setting up...' : 'Get API Key'}
+          {submitting
+            ? (authMode === 'signup' ? 'Setting up...' : 'Signing in...')
+            : (authMode === 'signup' ? 'Get API Key' : 'Sign In')}
         </button>
 
-        <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, textAlign: 'center' }}>
-          Takes 2 seconds. No credit card.
-        </p>
+        {authMode === 'signup' && (
+          <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, textAlign: 'center' }}>
+            Takes 2 seconds. No credit card.
+          </p>
+        )}
       </form>
     </div>
   )
