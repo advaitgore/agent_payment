@@ -20,6 +20,7 @@ export interface UserLogin {
 
 export interface AuthSessionResponse {
   user: UserRead;
+  access_token: string;
 }
 
 export interface PurchaseRequestCreate {
