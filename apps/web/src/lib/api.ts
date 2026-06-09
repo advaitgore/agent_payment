@@ -25,13 +25,15 @@ function getBaseUrl(): string {
   return getStoredApiBaseUrl()?.trim() || DEFAULT_BASE_URL;
 }
 
-async function apiCall<T>(endpoint: string, method: string = 'GET', body?: unknown): Promise<T> {
+async function apiCall<T>(endpoint: string, method: string = 'GET', body?: unknown, token?: string): Promise<T> {
   const url = `${getBaseUrl()}${endpoint}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   const opts: RequestInit = {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     credentials: 'include',
   };
   if (body) opts.body = JSON.stringify(body);
@@ -73,11 +75,9 @@ export async function rotateAgentKey(agentId: string): Promise<AgentRead> {
   return apiCall<AgentRead>(`/agents/${agentId}/rotate-key`, 'POST');
 }
 
-export async function listAgents(orgId?: string): Promise<AgentRead[]> {
-  if (orgId) {
-    return apiCall<AgentRead[]>(`/agents?org_id=${orgId}`);
-  }
-  return apiCall<AgentRead[]>('/agents');
+export async function listAgents(orgId?: string, token?: string): Promise<AgentRead[]> {
+  const suffix = orgId ? `?org_id=${orgId}` : '';
+  return apiCall<AgentRead[]>(`/agents${suffix}`, 'GET', undefined, token);
 }
 
 export async function createMandate(payload: MandateCreate): Promise<MandateRead> {

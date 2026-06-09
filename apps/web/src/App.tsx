@@ -66,13 +66,19 @@ export default function App() {
     try {
       if (authMode === 'signup') {
         const result = await signupAndProvision({ email: normalizedEmail, password })
-        // Fetch the full agent list so we have the name too
-        const agentList = await listAgents(result.org_id)
-        setAgents(agentList.length > 0 ? agentList : [{ id: result.agent_id, org_id: result.org_id, name: 'default', api_key: result.api_key, created_at: '' }])
+        // signup-and-provision doesn't return a session token, so we do a login to get one
+        const session = await login({ email: normalizedEmail, password })
+        const agentList = await listAgents(result.org_id, session.access_token)
+        setAgents(
+          agentList.length > 0
+            ? agentList
+            : [{ id: result.agent_id, org_id: result.org_id, name: 'default', api_key: result.api_key, created_at: '' }]
+        )
         setAppState('key_revealed')
       } else {
-        await login({ email: normalizedEmail, password })
-        const agentList = await listAgents()
+        const session = await login({ email: normalizedEmail, password })
+        // Pass the token directly — avoids cookie timing race on immediate follow-up call
+        const agentList = await listAgents(undefined, session.access_token)
         setAgents(agentList)
         setAppState('key_revealed')
       }
