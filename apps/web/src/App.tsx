@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import React, { useState } from 'react'
+import type { FormEvent, CSSProperties } from 'react'
 import './index.css'
 import { signupAndProvision, login } from './lib/api'
 import type { AgentRead } from './types/api'
@@ -78,9 +78,7 @@ export default function App() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  // ── Styles ────────────────────────────────────────────────────────────────
-
-  const containerStyle: React.CSSProperties = {
+  const containerStyle: CSSProperties = {
     minHeight: '100vh',
     display: 'grid',
     placeItems: 'center',
@@ -89,7 +87,7 @@ export default function App() {
     fontFamily: tokens.typography.fontFamily.body,
   }
 
-  const cardStyle: React.CSSProperties = {
+  const cardStyle: CSSProperties = {
     width: '100%',
     maxWidth: '520px',
     backgroundColor: tokens.colors.surface,
@@ -100,7 +98,7 @@ export default function App() {
     gap: tokens.spacing.md,
   }
 
-  const labelStyle: React.CSSProperties = {
+  const labelStyle: CSSProperties = {
     fontSize: tokens.typography.fontSize.xs,
     color: tokens.colors.text.tertiary,
     letterSpacing: tokens.typography.letterSpacing.widest,
@@ -109,7 +107,7 @@ export default function App() {
     display: 'block',
   }
 
-  const inputStyle: React.CSSProperties = {
+  const inputStyle: CSSProperties = {
     width: '100%',
     backgroundColor: tokens.colors.background,
     border: `1px solid rgba(255,255,255,0.15)`,
@@ -121,7 +119,7 @@ export default function App() {
     boxSizing: 'border-box',
   }
 
-  const btnPrimaryStyle: React.CSSProperties = {
+  const btnPrimaryStyle: CSSProperties = {
     width: '100%',
     padding: '11px 16px',
     backgroundColor: submitting ? tokens.colors.surfaceAlt : tokens.colors.accent,
@@ -131,11 +129,11 @@ export default function App() {
     fontSize: tokens.typography.fontSize.xs,
     fontWeight: tokens.typography.fontWeight.bold,
     letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase' as const,
+    textTransform: 'uppercase',
     cursor: submitting ? 'not-allowed' : 'pointer',
   }
 
-  const monoBoxStyle: React.CSSProperties = {
+  const monoBoxStyle: CSSProperties = {
     backgroundColor: tokens.colors.background,
     border: `1px solid ${tokens.colors.border}`,
     padding: '10px 12px',
@@ -149,7 +147,7 @@ export default function App() {
     lineHeight: 1.6,
   }
 
-  const copyBtnStyle = (key: string): React.CSSProperties => ({
+  const copyBtnStyle = (key: string): CSSProperties => ({
     padding: '6px 14px',
     backgroundColor: copied === key ? tokens.colors.surfaceAlt : 'transparent',
     border: `1px solid ${tokens.colors.border}`,
@@ -157,13 +155,13 @@ export default function App() {
     fontFamily: tokens.typography.fontFamily.body,
     fontSize: tokens.typography.fontSize.xs,
     letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase' as const,
+    textTransform: 'uppercase',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     flexShrink: 0,
   })
 
-  const tabStyle = (active: boolean): React.CSSProperties => ({
+  const tabStyle = (active: boolean): CSSProperties => ({
     flex: 1,
     padding: '8px 0',
     background: 'none',
@@ -174,12 +172,10 @@ export default function App() {
     fontSize: tokens.typography.fontSize.xs,
     fontWeight: tokens.typography.fontWeight.bold,
     letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase' as const,
+    textTransform: 'uppercase',
     cursor: 'pointer',
     marginBottom: '-1px',
   })
-
-  // ── Install commands per client ────────────────────────────────────────────
 
   const installCommands: Record<ClientTab, { label: string; natural: string; cmd: string | null; cmdKey: string }> = {
     hermes: {
@@ -208,15 +204,11 @@ export default function App() {
     },
   }
 
-  // ── Key Revealed Screen ─────────────────────────────────────────────────────
-
   if (appState === 'key_revealed') {
     const client = installCommands[clientTab]
     return (
       <div style={containerStyle}>
         <div style={cardStyle}>
-
-          {/* Header */}
           <div>
             <h1 style={{ fontFamily: tokens.typography.fontFamily.display, fontSize: tokens.typography.fontSize.title, fontWeight: tokens.typography.fontWeight.semibold, color: tokens.colors.text.primary, margin: 0 }}>
               AgentPay
@@ -224,7 +216,6 @@ export default function App() {
             <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>Ready to install</p>
           </div>
 
-          {/* API Key */}
           <div>
             <span style={labelStyle}>{agents.length === 1 ? 'Your API key' : `API keys (${agents.length})`}</span>
             {agents.map((agent) => (
@@ -240,20 +231,16 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>Key not visible — rotate it from the dashboard.</p>
+                  <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>Key not visible — rotate from dashboard.</p>
                 )}
               </div>
             ))}
           </div>
 
-          {/* Divider */}
           <div style={{ borderTop: `1px solid ${tokens.colors.border}` }} />
 
-          {/* Install section */}
           <div>
             <span style={labelStyle}>Install into your agent</span>
-
-            {/* Client tabs */}
             <div style={{ display: 'flex', borderBottom: `1px solid ${tokens.colors.border}`, marginBottom: '16px' }}>
               {(['hermes', 'openclaw', 'claude', 'custom'] as ClientTab[]).map((tab) => (
                 <button key={tab} type="button" onClick={() => setClientTab(tab)} style={tabStyle(clientTab === tab)}>
@@ -263,8 +250,6 @@ export default function App() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-              {/* Natural language option (Hermes + OpenClaw only) */}
               {client.natural && (
                 <div>
                   <span style={{ ...labelStyle, marginBottom: '8px' }}>Option A — just tell your agent</span>
@@ -279,8 +264,6 @@ export default function App() {
                   </p>
                 </div>
               )}
-
-              {/* CLI / config option */}
               {client.cmd && (
                 <div>
                   {client.natural && <span style={{ ...labelStyle, marginBottom: '8px' }}>Option B — terminal</span>}
@@ -299,23 +282,18 @@ export default function App() {
                   )}
                 </div>
               )}
-
-              {/* Set mandate reminder */}
               <div style={{ borderTop: `1px solid ${tokens.colors.border}`, paddingTop: '12px' }}>
                 <span style={labelStyle}>Then set your mandate</span>
                 <div style={{ ...monoBoxStyle, color: tokens.colors.text.secondary, whiteSpace: 'pre-wrap' }}>
                   {`"Set my spending limit to $50 per transaction.\nApproved merchants: Amazon, Vercel, GitHub."`}
                 </div>
               </div>
-
             </div>
           </div>
         </div>
       </div>
     )
   }
-
-  // ── Auth Screen ────────────────────────────────────────────────────────────
 
   return (
     <div style={containerStyle}>
@@ -346,7 +324,6 @@ export default function App() {
           <label style={labelStyle}>Email</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" style={inputStyle} autoComplete="email" />
         </div>
-
         <div>
           <label style={labelStyle}>Password</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 characters" style={inputStyle} autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} />
