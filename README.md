@@ -33,21 +33,67 @@ AgentPay sits between your agent's intent and the actual transaction — it does
 
 ## Install Into Your Agent
 
-Works with Claude, Cursor, Windsurf, and any MCP-compatible agent:
+### Option 1 — Natural language (Hermes, OpenClaw, and any agent with filesystem access)
+
+Just tell your agent:
+
+> *"Install the AgentPay MCP server from https://github.com/advaitgore/agent_payment. My API key is `ap_xxxx`."*
+
+The agent will add AgentPay to its MCP config automatically. No terminal needed.
+
+Then set your mandate:
+
+> *"Set my spending limit to $50 per transaction. Approved merchants: Amazon, Vercel, GitHub."*
+
+---
+
+### Option 2 — Hermes (CLI)
+
+```bash
+hermes mcp add agentpay \
+  --url https://agentpayment-production.up.railway.app/mcp \
+  --header "x-api-key: YOUR_API_KEY"
+```
+
+Get your API key at [agent-payment-eight.vercel.app](https://agent-payment-eight.vercel.app). Then in the Hermes chat, run `/reload-mcp`.
+
+---
+
+### Option 3 — OpenClaw (CLI)
+
+```bash
+openclaw mcp add agentpay \
+  --url https://agentpayment-production.up.railway.app/mcp \
+  --header "x-api-key: YOUR_API_KEY"
+```
+
+---
+
+### Option 4 — Claude, Cursor, Windsurf (Smithery)
 
 ```bash
 npx @smithery/cli install advaitgore/payguard --client claude
 ```
 
-When prompted, paste your API key from [agent-payment-eight.vercel.app](https://agent-payment-eight.vercel.app).
+Replace `--client claude` with `--client cursor` or `--client windsurf` as needed. When prompted, paste your API key.
 
-Then tell your agent to set up a mandate:
+---
 
+### Option 5 — Any custom agent (direct config)
+
+Add to your agent's MCP server list:
+
+```json
+{
+  "agentpay": {
+    "type": "sse",
+    "url": "https://agentpayment-production.up.railway.app/mcp",
+    "headers": {
+      "x-api-key": "YOUR_API_KEY"
+    }
+  }
+}
 ```
-"Set my spending limit to $50 per transaction. Approved merchants: Amazon, Vercel, GitHub."
-```
-
-That's it. Your agent now has spending rules it evaluates autonomously before every purchase.
 
 ---
 

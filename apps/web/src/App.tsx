@@ -7,35 +7,10 @@ import { tokens } from './tokens'
 
 type AppState = 'auth' | 'key_revealed'
 type AuthMode = 'signup' | 'login'
-
-export type Page = 'dashboard' | 'agents' | 'agent-detail' | 'audit-log' | 'settings' | 'setup'
+type ClientTab = 'hermes' | 'openclaw' | 'claude' | 'custom'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-const SMITHERY_CMD = 'npx @smithery/cli install advaitgore/payguard --client claude'
-
-const NEXT_STEPS = [
-  {
-    step: '1',
-    title: 'Install into your agent',
-    detail: 'Run this in your terminal. When prompted, paste the API key above. Works with Claude, Cursor, Windsurf, and any MCP-compatible agent.',
-    code: SMITHERY_CMD,
-    codeKey: 'cmd' as const,
-  },
-  {
-    step: '2',
-    title: 'Give your agent a spending mandate',
-    detail: 'Tell your agent: "Set my spending limit to $50 per transaction, approved merchants: Amazon, Vercel." It will call AgentPay to store the rules.',
-    code: null,
-    codeKey: null,
-  },
-  {
-    step: '3',
-    title: 'Let it run',
-    detail: 'Your agent now evaluates every purchase attempt against the mandate in real time — no babysitting required. Anything outside the rules is blocked and logged.',
-    code: null,
-    codeKey: null,
-  },
-]
+const MCP_URL = 'https://agentpayment-production.up.railway.app/mcp'
 
 async function fetchMyAgents(token: string): Promise<AgentRead[]> {
   const resp = await fetch(`${API_BASE}/auth/me/agents`, {
@@ -56,6 +31,9 @@ export default function App() {
   const [hint, setHint] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [clientTab, setClientTab] = useState<ClientTab>('hermes')
+
+  const apiKey = agents[0]?.api_key ?? null
 
   const switchMode = (mode: AuthMode) => {
     setAuthMode(mode)
@@ -66,13 +44,8 @@ export default function App() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail || !password) {
-      setError('Email and password are required.')
-      return
-    }
-    setSubmitting(true)
-    setError(null)
-    setHint(null)
+    if (!normalizedEmail || !password) { setError('Email and password are required.'); return }
+    setSubmitting(true); setError(null); setHint(null)
     try {
       if (authMode === 'signup') {
         const result = await signupAndProvision({ email: normalizedEmail, password })
@@ -83,25 +56,20 @@ export default function App() {
             ? agentList
             : [{ id: result.agent_id, org_id: result.org_id, name: 'default', api_key: result.api_key, created_at: '' }]
         )
-        setAppState('key_revealed')
       } else {
         const session = await login({ email: normalizedEmail, password })
         const agentList = await fetchMyAgents(session.access_token)
         setAgents(agentList)
-        setAppState('key_revealed')
       }
+      setAppState('key_revealed')
     } catch (err) {
       const msg = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Something went wrong.')
       const isDuplicate = /already exists|duplicate|conflict|registered/i.test(msg) || msg.includes('409')
       if (authMode === 'signup' && isDuplicate) {
         setError('An account with that email already exists.')
         setHint('Switch to Sign In to continue.')
-      } else {
-        setError(msg)
-      }
-    } finally {
-      setSubmitting(false)
-    }
+      } else { setError(msg) }
+    } finally { setSubmitting(false) }
   }
 
   const copy = (text: string, key: string) => {
@@ -110,7 +78,7 @@ export default function App() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  // ─── Styles ───────────────────────────────────────────────────────────────
+  // ── Styles ────────────────────────────────────────────────────────────────
 
   const containerStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -123,7 +91,7 @@ export default function App() {
 
   const cardStyle: React.CSSProperties = {
     width: '100%',
-    maxWidth: '480px',
+    maxWidth: '520px',
     backgroundColor: tokens.colors.surface,
     border: `1px solid ${tokens.colors.border}`,
     padding: '32px',
@@ -175,9 +143,10 @@ export default function App() {
     fontSize: tokens.typography.fontSize.xs,
     color: tokens.colors.accent,
     overflowX: 'auto',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'pre',
     flex: 1,
     minWidth: 0,
+    lineHeight: 1.6,
   }
 
   const copyBtnStyle = (key: string): React.CSSProperties => ({
@@ -194,12 +163,58 @@ export default function App() {
     flexShrink: 0,
   })
 
-  // ─── Key Revealed Screen ──────────────────────────────────────────────────
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1,
+    padding: '8px 0',
+    background: 'none',
+    border: 'none',
+    borderBottom: active ? `2px solid ${tokens.colors.accent}` : '2px solid transparent',
+    color: active ? tokens.colors.accent : tokens.colors.text.muted,
+    fontFamily: tokens.typography.fontFamily.body,
+    fontSize: tokens.typography.fontSize.xs,
+    fontWeight: tokens.typography.fontWeight.bold,
+    letterSpacing: tokens.typography.letterSpacing.widest,
+    textTransform: 'uppercase' as const,
+    cursor: 'pointer',
+    marginBottom: '-1px',
+  })
+
+  // ── Install commands per client ────────────────────────────────────────────
+
+  const installCommands: Record<ClientTab, { label: string; natural: string; cmd: string | null; cmdKey: string }> = {
+    hermes: {
+      label: 'Hermes',
+      natural: `"Install AgentPay MCP. My API key is ${apiKey ?? 'YOUR_API_KEY'}"`,
+      cmd: `hermes mcp add agentpay \\\n  --url ${MCP_URL} \\\n  --header "x-api-key: ${apiKey ?? 'YOUR_API_KEY'}"`,
+      cmdKey: 'hermes-cmd',
+    },
+    openclaw: {
+      label: 'OpenClaw',
+      natural: `"Install AgentPay MCP from github.com/advaitgore/agent_payment. API key: ${apiKey ?? 'YOUR_API_KEY'}"`,
+      cmd: `openclaw mcp add agentpay \\\n  --url ${MCP_URL} \\\n  --header "x-api-key: ${apiKey ?? 'YOUR_API_KEY'}"`,
+      cmdKey: 'openclaw-cmd',
+    },
+    claude: {
+      label: 'Claude / Cursor',
+      natural: '',
+      cmd: `npx @smithery/cli install advaitgore/payguard --client claude`,
+      cmdKey: 'claude-cmd',
+    },
+    custom: {
+      label: 'Custom agent',
+      natural: '',
+      cmd: `{\n  "agentpay": {\n    "type": "sse",\n    "url": "${MCP_URL}",\n    "headers": {\n      "x-api-key": "${apiKey ?? 'YOUR_API_KEY'}"\n    }\n  }\n}`,
+      cmdKey: 'custom-cmd',
+    },
+  }
+
+  // ── Key Revealed Screen ─────────────────────────────────────────────────────
 
   if (appState === 'key_revealed') {
+    const client = installCommands[clientTab]
     return (
       <div style={containerStyle}>
-        <div style={{ ...cardStyle, maxWidth: '520px' }}>
+        <div style={cardStyle}>
 
           {/* Header */}
           <div>
@@ -209,24 +224,13 @@ export default function App() {
             <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>Ready to install</p>
           </div>
 
-          {/* Agent API Keys */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <span style={labelStyle}>
-              {agents.length === 1 ? 'Agent API key' : agents.length > 1 ? `Agent API keys (${agents.length})` : 'Agent API key'}
-            </span>
-
-            {agents.length === 0 && (
-              <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
-                Signed in. Your API key was issued at signup — paste it when Smithery prompts you, or rotate it from agent settings.
-              </p>
-            )}
-
+          {/* API Key */}
+          <div>
+            <span style={labelStyle}>{agents.length === 1 ? 'Your API key' : `API keys (${agents.length})`}</span>
             {agents.map((agent) => (
-              <div key={agent.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div key={agent.id} style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: agents.length > 1 ? '10px' : 0 }}>
                 {agents.length > 1 && (
-                  <span style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.secondary, fontWeight: tokens.typography.fontWeight.bold }}>
-                    {agent.name}
-                  </span>
+                  <span style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.secondary, fontWeight: tokens.typography.fontWeight.bold }}>{agent.name}</span>
                 )}
                 {agent.api_key ? (
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -236,9 +240,7 @@ export default function App() {
                     </button>
                   </div>
                 ) : (
-                  <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
-                    Key not visible — rotate it from the dashboard.
-                  </p>
+                  <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>Key not visible — rotate it from the dashboard.</p>
                 )}
               </div>
             ))}
@@ -247,54 +249,73 @@ export default function App() {
           {/* Divider */}
           <div style={{ borderTop: `1px solid ${tokens.colors.border}` }} />
 
-          {/* Next Steps */}
+          {/* Install section */}
           <div>
-            <span style={labelStyle}>Set up your agent</span>
-            <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {NEXT_STEPS.map((s) => (
-                <li key={s.step} style={{ display: 'flex', gap: '12px' }}>
-                  <span style={{
-                    flexShrink: 0,
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: `1px solid ${tokens.colors.border}`,
-                    borderRadius: '50%',
-                    fontSize: tokens.typography.fontSize.xs,
-                    color: tokens.colors.text.tertiary,
-                    lineHeight: 1,
-                    marginTop: '1px',
-                  }}>
-                    {s.step}
-                  </span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                    <span style={{ fontSize: tokens.typography.fontSize.sm, color: tokens.colors.text.primary, fontWeight: tokens.typography.fontWeight.bold }}>
-                      {s.title}
-                    </span>
-                    <span style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, lineHeight: 1.6 }}>
-                      {s.detail}
-                    </span>
-                    {s.code && s.codeKey && (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
-                        <div style={monoBoxStyle}>{s.code}</div>
-                        <button style={copyBtnStyle(s.codeKey)} onClick={() => copy(s.code!, s.codeKey!)}>
-                          {copied === s.codeKey ? 'Copied' : 'Copy'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </li>
+            <span style={labelStyle}>Install into your agent</span>
+
+            {/* Client tabs */}
+            <div style={{ display: 'flex', borderBottom: `1px solid ${tokens.colors.border}`, marginBottom: '16px' }}>
+              {(['hermes', 'openclaw', 'claude', 'custom'] as ClientTab[]).map((tab) => (
+                <button key={tab} type="button" onClick={() => setClientTab(tab)} style={tabStyle(clientTab === tab)}>
+                  {installCommands[tab].label}
+                </button>
               ))}
-            </ol>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+              {/* Natural language option (Hermes + OpenClaw only) */}
+              {client.natural && (
+                <div>
+                  <span style={{ ...labelStyle, marginBottom: '8px' }}>Option A — just tell your agent</span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <div style={{ ...monoBoxStyle, color: tokens.colors.text.secondary, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{client.natural}</div>
+                    <button style={copyBtnStyle(`${clientTab}-natural`)} onClick={() => copy(client.natural, `${clientTab}-natural`)}>
+                      {copied === `${clientTab}-natural` ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: '8px 0 0', lineHeight: 1.6 }}>
+                    The agent will add AgentPay to its MCP config automatically.
+                  </p>
+                </div>
+              )}
+
+              {/* CLI / config option */}
+              {client.cmd && (
+                <div>
+                  {client.natural && <span style={{ ...labelStyle, marginBottom: '8px' }}>Option B — terminal</span>}
+                  {clientTab === 'custom' && <span style={{ ...labelStyle, marginBottom: '8px' }}>Add to your MCP config</span>}
+                  {clientTab === 'claude' && <span style={{ ...labelStyle, marginBottom: '8px' }}>Run in terminal — prompts for your API key</span>}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <div style={{ ...monoBoxStyle, whiteSpace: 'pre-wrap' }}>{client.cmd}</div>
+                    <button style={copyBtnStyle(client.cmdKey)} onClick={() => copy(client.cmd!, client.cmdKey)}>
+                      {copied === client.cmdKey ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  {clientTab === 'hermes' && (
+                    <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: '8px 0 0', lineHeight: 1.6 }}>
+                      Then type <code style={{ color: tokens.colors.accent }}>/reload-mcp</code> in the Hermes chat.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Set mandate reminder */}
+              <div style={{ borderTop: `1px solid ${tokens.colors.border}`, paddingTop: '12px' }}>
+                <span style={labelStyle}>Then set your mandate</span>
+                <div style={{ ...monoBoxStyle, color: tokens.colors.text.secondary, whiteSpace: 'pre-wrap' }}>
+                  {`"Set my spending limit to $50 per transaction.\nApproved merchants: Amazon, Vercel, GitHub."`}
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
-  // ─── Auth Screen ──────────────────────────────────────────────────────────
+  // ── Auth Screen ────────────────────────────────────────────────────────────
 
   return (
     <div style={containerStyle}>
@@ -306,29 +327,16 @@ export default function App() {
           <p style={{ ...labelStyle, marginTop: '6px', marginBottom: 0 }}>Spending controls for AI agents</p>
         </div>
 
-        {/* Tab toggle */}
         <div style={{ display: 'flex', borderBottom: `1px solid ${tokens.colors.border}` }}>
           {(['signup', 'login'] as AuthMode[]).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => switchMode(mode)}
-              style={{
-                flex: 1,
-                padding: `${tokens.spacing.sm} 0`,
-                background: 'none',
-                border: 'none',
-                borderBottom: authMode === mode ? `2px solid ${tokens.colors.accent}` : '2px solid transparent',
-                color: authMode === mode ? tokens.colors.accent : tokens.colors.text.muted,
-                fontFamily: tokens.typography.fontFamily.body,
-                fontSize: tokens.typography.fontSize.xs,
-                fontWeight: tokens.typography.fontWeight.bold,
-                letterSpacing: tokens.typography.letterSpacing.widest,
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                marginBottom: '-1px',
-              }}
-            >
+            <button key={mode} type="button" onClick={() => switchMode(mode)} style={{
+              flex: 1, padding: `${tokens.spacing.sm} 0`, background: 'none', border: 'none',
+              borderBottom: authMode === mode ? `2px solid ${tokens.colors.accent}` : '2px solid transparent',
+              color: authMode === mode ? tokens.colors.accent : tokens.colors.text.muted,
+              fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs,
+              fontWeight: tokens.typography.fontWeight.bold, letterSpacing: tokens.typography.letterSpacing.widest,
+              textTransform: 'uppercase', cursor: 'pointer', marginBottom: '-1px',
+            }}>
               {mode === 'signup' ? 'Sign Up' : 'Sign In'}
             </button>
           ))}
@@ -336,36 +344,19 @@ export default function App() {
 
         <div>
           <label style={labelStyle}>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
-            style={inputStyle}
-            autoComplete="email"
-          />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" style={inputStyle} autoComplete="email" />
         </div>
 
         <div>
           <label style={labelStyle}>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 8 characters"
-            style={inputStyle}
-            autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
-          />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 characters" style={inputStyle} autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} />
         </div>
 
         {error && (
           <div style={{ backgroundColor: tokens.colors.errorBg, border: `1px solid ${tokens.colors.errorBorder}`, color: tokens.colors.error, padding: '10px 12px', fontSize: tokens.typography.fontSize.xs }}>
             {error}
             {hint && (
-              <span
-                onClick={() => switchMode('login')}
-                style={{ marginLeft: '6px', color: tokens.colors.accent, cursor: 'pointer', textDecoration: 'underline' }}
-              >
+              <span onClick={() => switchMode('login')} style={{ marginLeft: '6px', color: tokens.colors.accent, cursor: 'pointer', textDecoration: 'underline' }}>
                 {hint}
               </span>
             )}
@@ -373,15 +364,11 @@ export default function App() {
         )}
 
         <button type="submit" disabled={submitting} style={btnPrimaryStyle}>
-          {submitting
-            ? (authMode === 'signup' ? 'Setting up...' : 'Signing in...')
-            : (authMode === 'signup' ? 'Get API Key' : 'Sign In')}
+          {submitting ? (authMode === 'signup' ? 'Setting up...' : 'Signing in...') : (authMode === 'signup' ? 'Get API Key' : 'Sign In')}
         </button>
 
         {authMode === 'signup' && (
-          <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, textAlign: 'center' }}>
-            Takes 2 seconds. No credit card.
-          </p>
+          <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0, textAlign: 'center' }}>Takes 2 seconds. No credit card.</p>
         )}
       </form>
     </div>
