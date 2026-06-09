@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import './index.css'
-import { signupAndProvision, login } from './lib/api'
+import { signupAndProvision, login, listAgents } from './lib/api'
 import { tokens } from './tokens'
 
 type AppState = 'signup' | 'key_revealed'
@@ -44,8 +44,10 @@ export default function App() {
         setApiKey(result.api_key)
         setAppState('key_revealed')
       } else {
-        const result = await login({ email: normalizedEmail, password })
-        const key = (result as unknown as { api_key?: string }).api_key ?? ''
+        await login({ email: normalizedEmail, password })
+        // login sets the session cookie; now fetch the agent key
+        const agents = await listAgents()
+        const key = agents[0]?.api_key ?? ''
         setApiKey(key)
         setAppState('key_revealed')
       }
@@ -177,7 +179,7 @@ export default function App() {
             </div>
           ) : (
             <p style={{ fontSize: tokens.typography.fontSize.xs, color: tokens.colors.text.tertiary, margin: 0 }}>
-              Signed in successfully. Your API key was issued at signup — check your original setup email or the Setup page.
+              Signed in but no agent found. Make sure your account was provisioned via signup.
             </p>
           )}
 
