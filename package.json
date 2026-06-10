@@ -1,8 +1,0 @@
-{
-  "name": "agent-payment-root",
-  "private": true,
-  "scripts": {
-    "build": "cd apps/web && npm install && npm run build",
-    "dev": "cd apps/web && npm run dev"
-  }
-}
