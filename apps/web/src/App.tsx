@@ -102,7 +102,7 @@ export default function App() {
     fontSize: tokens.typography.fontSize.xs,
     color: tokens.colors.text.tertiary,
     letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
     marginBottom: '6px',
     display: 'block',
   }
@@ -129,7 +129,7 @@ export default function App() {
     fontSize: tokens.typography.fontSize.xs,
     fontWeight: tokens.typography.fontWeight.bold,
     letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
     cursor: submitting ? 'not-allowed' : 'pointer',
   }
 
@@ -155,7 +155,7 @@ export default function App() {
     fontFamily: tokens.typography.fontFamily.body,
     fontSize: tokens.typography.fontSize.xs,
     letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     flexShrink: 0,
@@ -172,7 +172,7 @@ export default function App() {
     fontSize: tokens.typography.fontSize.xs,
     fontWeight: tokens.typography.fontWeight.bold,
     letterSpacing: tokens.typography.letterSpacing.widest,
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
     cursor: 'pointer',
     marginBottom: '-1px',
   })
@@ -313,7 +313,7 @@ export default function App() {
               color: authMode === mode ? tokens.colors.accent : tokens.colors.text.muted,
               fontFamily: tokens.typography.fontFamily.body, fontSize: tokens.typography.fontSize.xs,
               fontWeight: tokens.typography.fontWeight.bold, letterSpacing: tokens.typography.letterSpacing.widest,
-              textTransform: 'uppercase', cursor: 'pointer', marginBottom: '-1px',
+              textTransform: 'uppercase' as const, cursor: 'pointer', marginBottom: '-1px',
             }}>
               {mode === 'signup' ? 'Sign Up' : 'Sign In'}
             </button>
