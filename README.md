@@ -1,10 +1,10 @@
-# AgentPay
+# Arbor
 
 [![smithery badge](https://smithery.ai/badge/advaitgore/payguard)](https://smithery.ai/servers/advaitgore/payguard)
 
 > **Give your AI agent a wallet with rules it can't break.**
 
-AgentPay is the authorization layer between an AI agent and real spending. Install it into any MCP-compatible agent, define your rules once — spending caps, approved merchants, time windows — and every purchase the agent attempts is checked against them in real time. Approved transactions go through. Anything outside the mandate is blocked, logged, and surfaced to you.
+Arbor is the authorization layer between an AI agent and real spending. Install it into any MCP-compatible agent, define your rules once — spending caps, approved merchants, time windows — and every purchase the agent attempts is checked against them in real time. Approved transactions go through. Anything outside the mandate is blocked, logged, and surfaced to you.
 
 Your agent runs autonomously. You stay in control.
 
@@ -13,7 +13,7 @@ Your agent runs autonomously. You stay in control.
 ## How It Works
 
 ```
-You install AgentPay into your agent
+You install Arbor into your agent
             ↓
    You set a spending mandate once
             ↓
@@ -27,7 +27,7 @@ You install AgentPay into your agent
                     reports to you
 ```
 
-AgentPay sits between your agent's intent and the actual transaction — it doesn't move money itself, it decides whether the agent is *allowed* to.
+Arbor sits between your agent's intent and the actual transaction — it doesn't move money itself, it decides whether the agent is *allowed* to.
 
 ---
 
