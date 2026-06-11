@@ -43,7 +43,6 @@ Just paste this into your agent's chat — no CLI needed:
 
 ```
 Install the AgentPay MCP server. My API key is <your-api-key>.
-The server URL is https://agentpayment-production.up.railway.app/mcp.
 ```
 
 Your agent will handle the rest automatically.
