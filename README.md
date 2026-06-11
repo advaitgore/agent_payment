@@ -33,15 +33,47 @@ AgentPay sits between your agent's intent and the actual transaction — it does
 
 ## Install Into Your Agent
 
-Works with Claude, Cursor, Windsurf, and any MCP-compatible agent:
+First, grab your API key from [agent-payment-eight.vercel.app](https://agent-payment-eight.vercel.app).
+
+Then pick your agent:
+
+### Hermes or OpenClaw (natural language)
+
+Just paste this into your agent's chat — no CLI needed:
+
+```
+Install the AgentPay MCP server. My API key is <your-api-key>.
+The server URL is https://agentpayment-production.up.railway.app/mcp.
+```
+
+Your agent will handle the rest automatically.
+
+### Claude / Cursor / Windsurf (Smithery)
 
 ```bash
 npx @smithery/cli install advaitgore/payguard --client claude
 ```
 
-When prompted, paste your API key from [agent-payment-eight.vercel.app](https://agent-payment-eight.vercel.app).
+When prompted, paste your API key.
 
-Then tell your agent to set up a mandate:
+### Any MCP-compatible agent (manual config)
+
+```json
+{
+  "mcpServers": {
+    "agentpay": {
+      "url": "https://agentpayment-production.up.railway.app/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-api-key>"
+      }
+    }
+  }
+}
+```
+
+---
+
+Once installed, tell your agent to set up a mandate:
 
 ```
 "Set my spending limit to $50 per transaction. Approved merchants: Amazon, Vercel, GitHub."
